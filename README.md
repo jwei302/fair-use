@@ -42,7 +42,7 @@ model.pt               ← saved PyTorch model (created by the script)
 1. Open **Terminal** (Applications → Utilities → Terminal).
 2. Run:
    ```bash
-   pip install flask torch
+   pip install flask torch flask-cors
    ```
 
 ## 2. Create the Model (First Time Only)
