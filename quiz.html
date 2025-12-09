@@ -152,6 +152,77 @@
   .factor-tagline{ font-size:11px; opacity:.7; margin-bottom:8px; }
   .factor-text{ font-size:12px; line-height:1.5; margin-top:6px; }
 
+  /* Training Data Section */
+  .case-name-input{
+    width:100%; padding:12px; font-size:15px; border:2px solid #d8dee9;
+    border-radius:8px; margin-bottom:20px; font-family:inherit;
+  }
+  .label-selection{
+    display:flex; gap:20px; margin:20px 0; justify-content:center;
+  }
+  .label-option{
+    padding:12px 24px; border:2px solid #d8dee9; border-radius:8px;
+    cursor:pointer; background:var(--card-bg); transition:.2s;
+    font-weight:600;
+  }
+  .label-option:hover{ border-color:var(--primary); background:#f0f3fa; }
+  .label-option.selected{
+    border-color:var(--primary); background:var(--primary); color:white;
+  }
+  .label-option.selected[data-label="0"]{ background:#ff5757; border-color:#ff5757; }
+  .label-option.selected[data-label="1"]{ background:#6BCB77; border-color:#6BCB77; }
+  .save-message{
+    margin-top:16px; padding:12px; border-radius:8px; display:none;
+    font-weight:600;
+  }
+  .save-message.success{ background:#d4edda; color:#155724; border:1px solid #c3e6cb; display:block; }
+  .save-message.error{ background:#f8d7da; color:#721c24; border:1px solid #f5c6cb; display:block; }
+
+  /* Admin Section */
+  .admin-controls{
+    display:flex; gap:12px; margin-bottom:20px; align-items:center;
+  }
+  .cases-list{
+    margin-top:20px;
+  }
+  .case-item{
+    background:var(--card-bg); padding:16px; border-radius:12px;
+    box-shadow:var(--shadow); margin-bottom:12px;
+    display:flex; justify-content:space-between; align-items:center;
+  }
+  .case-info h3{ margin:0 0 8px 0; font-size:16px; }
+  .case-info p{ margin:4px 0; font-size:13px; opacity:.7; }
+  .case-actions{
+    display:flex; gap:8px;
+  }
+  .btn-delete{
+    padding:8px 16px; background:#ff5757; color:white; border:none;
+    border-radius:6px; cursor:pointer; font-weight:600; transition:.2s;
+  }
+  .btn-delete:hover{ background:#e04343; }
+  .btn-train{
+    padding:10px 20px; background:var(--primary); color:white; border:none;
+    border-radius:8px; cursor:pointer; font-weight:600; transition:.2s;
+  }
+  .btn-train:hover{ background:#345fd2; }
+  .btn-train:disabled{ background:#ccc; cursor:not-allowed; }
+  .btn-export{
+    padding:10px 20px; background:var(--accent); color:white; border:none;
+    border-radius:8px; cursor:pointer; font-weight:600; transition:.2s;
+    margin-left:auto;
+  }
+  .btn-export:hover{ background:#5ab868; }
+  .stats{
+    background:var(--card-bg); padding:16px; border-radius:12px;
+    box-shadow:var(--shadow); margin-bottom:20px;
+    display:flex; gap:24px; flex-wrap:wrap;
+  }
+  .stat-item{
+    text-align:center;
+  }
+  .stat-number{ font-size:24px; font-weight:700; color:var(--primary); }
+  .stat-label{ font-size:12px; opacity:.7; margin-top:4px; }
+
 </style>
 </head>
 
@@ -160,6 +231,8 @@
 <!-- NAVBAR -->
 <div class="navbar">
   <a class="nav-item" onclick="showTab('quiz')">Quiz</a>
+  <a class="nav-item" onclick="showTab('training')">Training Data</a>
+  <a class="nav-item" onclick="showTab('admin')">Admin</a>
   <a class="nav-item" onclick="showTab('resources')">Resources</a>
   <a class="nav-item" onclick="showTab('process')">Process</a>
 </div>
@@ -212,10 +285,73 @@
 </div>
 
 
+<!-- TRAINING DATA SECTION -->
+<div id="training" class="section">
+  <h1>Add Training Data</h1>
+  <div class="subtitle">
+    Enter a court case with its answers and label (fair use or not fair use) to build your training dataset.
+  </div>
+
+  <div class="intro-card">
+    <h2>Instructions</h2>
+    <p>
+      <b>1.</b> Enter the name of the court case (e.g., "Campbell v. Acuff-Rose Music, 510 U.S. 569 (1994)")<br>
+      <b>2.</b> Answer all 25 questions based on how the court case was decided<br>
+      <b>3.</b> Select whether the case was ruled as <b>Fair Use</b> or <b>Not Fair Use</b><br>
+      <b>4.</b> Click "Save Case" to add it to the database
+    </p>
+  </div>
+
+  <input type="text" id="caseNameInput" class="case-name-input" placeholder="Enter case name (e.g., Campbell v. Acuff-Rose Music, 510 U.S. 569 (1994))">
+
+  <div class="label-selection">
+    <div class="label-option" data-label="1" onclick="selectLabel(1)">
+      ✓ Fair Use
+    </div>
+    <div class="label-option" data-label="0" onclick="selectLabel(0)">
+      ✗ Not Fair Use
+    </div>
+  </div>
+
+  <div id="trainingQuestionContainer"></div>
+  <button type="button" onclick="saveTrainingCase()">Save Case</button>
+  <div id="saveMessage" class="save-message"></div>
+</div>
+
+
+<!-- ADMIN SECTION -->
+<div id="admin" class="section">
+  <h1>Admin - View Training Data</h1>
+  <div class="subtitle">
+    View, manage, and export your training dataset.
+  </div>
+
+  <div class="admin-controls">
+    <button type="button" onclick="loadAdminData()">Refresh Data</button>
+    <button type="button" class="btn-train" onclick="trainModel()">Train Model</button>
+    <button type="button" class="btn-export" onclick="exportTrainingData()">Export JSON</button>
+  </div>
+  <div id="trainMessage" class="save-message"></div>
+
+  <div id="statsContainer" class="stats"></div>
+  <div id="casesContainer" class="cases-list"></div>
+</div>
+
+
 <script>
 function showTab(tab){
   document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
   document.getElementById(tab).classList.add("active");
+  if(tab === 'admin'){
+    loadAdminData();
+  }
+  if(tab === 'training'){
+    // Reset training form when switching to it
+    document.getElementById('caseNameInput').value = '';
+    selectedLabel = null;
+    document.querySelectorAll('.label-option').forEach(opt => opt.classList.remove('selected'));
+    renderTrainingQuestions();
+  }
 }
 </script>
 
@@ -535,8 +671,271 @@ async function calculateScore() {
   document.getElementById("result").innerHTML = html;
 }
 
+// =====================================================
+// TRAINING DATA FUNCTIONS
+// =====================================================
 
+let selectedLabel = null;
 
+function renderTrainingQuestions() {
+  const container = document.getElementById("trainingQuestionContainer");
+  container.innerHTML = ''; // Clear existing
+  for (let i = 1; i <= 25; i++) {
+    const block = document.createElement("div");
+    block.className = "question-block";
+    block.innerHTML = `
+      <div class="question-label"><b>Q${i}.</b> ${questionTexts[i]}</div>
+      <input type="range" min="1" max="9" value="5" id="tq${i}"
+             oninput="document.getElementById('tv${i}').innerText=this.value">
+      <div class="label-row">
+        <span>1 (less supportive)</span>
+        <span class="score-value" id="tv${i}">5</span>
+        <span>9 (more supportive)</span>
+      </div>
+    `;
+    container.appendChild(block);
+  }
+}
+
+function selectLabel(label) {
+  selectedLabel = label;
+  document.querySelectorAll('.label-option').forEach(opt => {
+    opt.classList.remove('selected');
+    if(parseInt(opt.dataset.label) === label) {
+      opt.classList.add('selected');
+    }
+  });
+}
+
+async function saveTrainingCase() {
+  const caseName = document.getElementById('caseNameInput').value.trim();
+  if (!caseName) {
+    showSaveMessage('Please enter a case name', 'error');
+    return;
+  }
+  if (selectedLabel === null) {
+    showSaveMessage('Please select whether this is Fair Use or Not Fair Use', 'error');
+    return;
+  }
+
+  const answers = [];
+  for (let i = 1; i <= 25; i++) {
+    const val = parseFloat(document.getElementById(`tq${i}`).value);
+    answers.push(isNaN(val) ? 5 : val);
+  }
+
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/add-case', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        case_name: caseName,
+        answers: answers,
+        label: selectedLabel
+      })
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      showSaveMessage(`✓ Case saved successfully! (ID: ${result.id})`, 'success');
+      // Reset form
+      document.getElementById('caseNameInput').value = '';
+      selectedLabel = null;
+      document.querySelectorAll('.label-option').forEach(opt => opt.classList.remove('selected'));
+      renderTrainingQuestions();
+    } else {
+      showSaveMessage(`Error: ${result.error}`, 'error');
+    }
+  } catch (error) {
+    showSaveMessage(`Error: Could not connect to server. Make sure Flask is running.`, 'error');
+  }
+}
+
+function showSaveMessage(message, type) {
+  const msgDiv = document.getElementById('saveMessage');
+  msgDiv.textContent = message;
+  msgDiv.className = `save-message ${type}`;
+  setTimeout(() => {
+    msgDiv.className = 'save-message';
+  }, 5000);
+}
+
+// =====================================================
+// ADMIN FUNCTIONS
+// =====================================================
+
+async function loadAdminData() {
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/cases');
+    const result = await response.json();
+    
+    if (!response.ok) {
+      document.getElementById('casesContainer').innerHTML = `<p style="color:#ff5757;">Error: ${result.error}</p>`;
+      return;
+    }
+
+    const cases = result.cases;
+    
+    // Update stats
+    const totalCases = cases.length;
+    const fairUseCount = cases.filter(c => c.label === 1).length;
+    const notFairUseCount = cases.filter(c => c.label === 0).length;
+    
+    document.getElementById('statsContainer').innerHTML = `
+      <div class="stat-item">
+        <div class="stat-number">${totalCases}</div>
+        <div class="stat-label">Total Cases</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" style="color:#6BCB77;">${fairUseCount}</div>
+        <div class="stat-label">Fair Use</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number" style="color:#ff5757;">${notFairUseCount}</div>
+        <div class="stat-label">Not Fair Use</div>
+      </div>
+    `;
+
+    // Display cases
+    if (cases.length === 0) {
+      document.getElementById('casesContainer').innerHTML = `
+        <div style="text-align:center; padding:40px; opacity:0.7;">
+          No cases in database yet. Add some in the Training Data tab!
+        </div>
+      `;
+      return;
+    }
+
+    let html = '';
+    cases.forEach(c => {
+      const date = new Date(c.created_at).toLocaleString();
+      const labelText = c.label === 1 ? '<span style="color:#6BCB77; font-weight:600;">✓ Fair Use</span>' : 
+                                       '<span style="color:#ff5757; font-weight:600;">✗ Not Fair Use</span>';
+      html += `
+        <div class="case-item">
+          <div class="case-info">
+            <h3>${c.case_name}</h3>
+            <p>${labelText}</p>
+            <p>Added: ${date} | ID: ${c.id}</p>
+          </div>
+          <div class="case-actions">
+            <button class="btn-delete" onclick="deleteCase(${c.id})">Delete</button>
+          </div>
+        </div>
+      `;
+    });
+    document.getElementById('casesContainer').innerHTML = html;
+
+  } catch (error) {
+    document.getElementById('casesContainer').innerHTML = `
+      <p style="color:#ff5757;">Error: Could not connect to server. Make sure Flask is running.</p>
+    `;
+  }
+}
+
+async function deleteCase(caseId) {
+  if (!confirm('Are you sure you want to delete this case?')) {
+    return;
+  }
+
+  try {
+    const response = await fetch(`http://127.0.0.1:5000/api/cases/${caseId}`, {
+      method: 'DELETE'
+    });
+
+    const result = await response.json();
+    if (response.ok) {
+      loadAdminData(); // Refresh the list
+    } else {
+      alert(`Error: ${result.error}`);
+    }
+  } catch (error) {
+    alert('Error: Could not connect to server.');
+  }
+}
+
+async function trainModel() {
+  const trainBtn = document.querySelector('.btn-train');
+  const msgDiv = document.getElementById('trainMessage');
+  
+  if (!confirm('Train the logistic regression model on all current training data? This may take a few seconds.')) {
+    return;
+  }
+  
+  trainBtn.disabled = true;
+  trainBtn.textContent = 'Training...';
+  msgDiv.textContent = 'Training model, please wait...';
+  msgDiv.className = 'save-message';
+  msgDiv.style.display = 'block';
+  
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/train-model', {
+      method: 'POST'
+    });
+    
+    const result = await response.json();
+    
+    if (response.ok && result.success) {
+      msgDiv.textContent = '✓ Model trained successfully! You can now use AI predictions in the Quiz tab.';
+      msgDiv.className = 'save-message success';
+      
+      // Show training output if available
+      if (result.output) {
+        console.log('Training output:', result.output);
+      }
+    } else {
+      const errorMsg = result.error || 'Training failed';
+      const output = result.output || 'No output available';
+      msgDiv.textContent = `Error: ${errorMsg}`;
+      msgDiv.className = 'save-message error';
+      console.error('Training failed:', errorMsg);
+      console.error('Output:', output);
+      
+      // Show output in alert if available (truncate if too long)
+      if (output && output.trim()) {
+        const shortOutput = output.length > 500 ? output.substring(0, 500) + '...' : output;
+        alert(`Training Error:\n\n${shortOutput}`);
+      }
+    }
+  } catch (error) {
+    msgDiv.textContent = 'Error: Could not connect to server. Make sure Flask is running.';
+    msgDiv.className = 'save-message error';
+  } finally {
+    trainBtn.disabled = false;
+    trainBtn.textContent = 'Train Model';
+    setTimeout(() => {
+      msgDiv.style.display = 'none';
+    }, 10000);
+  }
+}
+
+async function exportTrainingData() {
+  try {
+    const response = await fetch('http://127.0.0.1:5000/api/export-cases');
+    const result = await response.json();
+    
+    if (!response.ok) {
+      alert(`Error: ${result.error}`);
+      return;
+    }
+
+    // Create downloadable JSON file
+    const dataStr = JSON.stringify(result, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `training_data_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    alert(`Exported ${result.count} cases successfully!`);
+  } catch (error) {
+    alert('Error: Could not connect to server.');
+  }
+}
 
 </script>
 

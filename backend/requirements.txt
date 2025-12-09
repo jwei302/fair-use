@@ -1,2 +1,4 @@
 flask
-torch
+flask-cors
+scikit-learn
+numpy
