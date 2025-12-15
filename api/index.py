@@ -17,23 +17,32 @@ def reload_model():
     """Reload the model (useful after training)"""
     global model
     try:
-        # Try different import methods (both should work)
-        try:
-            from model_def import load_model
-        except ImportError:
-            import sys
-            sys.path.insert(0, os.path.dirname(__file__))
-            from model_def import load_model
+        # Import the module
+        import sys
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
         
-        model = load_model()
+        import model_def
+        model = model_def.load_model()
+        
         if model is not None:
             print("✓ Logistic regression model loaded successfully")
+            return True
         else:
             print("Warning: No trained model found.")
+            return False
     except Exception as e:
         print(f"Warning: Could not load model ({str(e)}). Predictions will not be available.")
+        import traceback
+        traceback.print_exc()
+        return False
 
-reload_model()
+# Try to load model, but don't crash if it fails
+try:
+    reload_model()
+except Exception as e:
+    print(f"Model loading failed: {e}")
 
 @app.route("/", methods=["GET"])
 @app.route("/api", methods=["GET"])
@@ -47,29 +56,38 @@ def predict():
         return jsonify({"error": "Model not loaded. Train a model first."}), 500
     
     try:
-        try:
-            from model_def import predict as model_predict
-        except ImportError:
-            import sys
-            sys.path.insert(0, os.path.dirname(__file__))
-            from model_def import predict as model_predict
+        import sys
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        if current_dir not in sys.path:
+            sys.path.insert(0, current_dir)
+        
+        import model_def
         
         data = request.json
-        answers = data["answers"]  # list of numbers
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+            
+        answers = data.get("answers")
+        if not answers:
+            return jsonify({"error": "No answers provided"}), 400
         
         # Validate we have 25 answers
         if len(answers) != 25:
             return jsonify({"error": "Must provide exactly 25 answers"}), 400
         
         # Make prediction
-        score = model_predict(model, answers)
+        score = model_def.predict(model, answers)
         
         if score is None:
             return jsonify({"error": "Prediction failed"}), 500
 
         return jsonify({"score": score})
     except Exception as e:
-        return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
+        import traceback
+        return jsonify({
+            "error": f"Prediction failed: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
 
 @app.route("/api/add-case", methods=["POST"])
 def add_case():
