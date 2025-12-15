@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import json
 import os
+import pickle
 
 # Create Flask app
 app = Flask(__name__)
@@ -13,36 +14,56 @@ cases_storage = []
 # Load logistic regression model
 model = None
 
-def reload_model():
-    """Reload the model (useful after training)"""
-    global model
+def load_model():
+    """Load the trained model from disk - embedded to avoid import issues"""
     try:
-        # Import the module
-        import sys
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        if current_dir not in sys.path:
-            sys.path.insert(0, current_dir)
+        model_path = os.path.join(os.path.dirname(__file__), 'logistic_model.pkl')
+        print(f"Attempting to load model from: {model_path}")
+        print(f"File exists: {os.path.exists(model_path)}")
         
-        import model_def
-        model = model_def.load_model()
-        
-        if model is not None:
-            print("✓ Logistic regression model loaded successfully")
-            return True
-        else:
-            print("Warning: No trained model found.")
-            return False
+        if not os.path.exists(model_path):
+            print(f"Model file not found at {model_path}")
+            return None
+            
+        with open(model_path, 'rb') as f:
+            loaded_model = pickle.load(f)
+        print("Model loaded successfully!")
+        return loaded_model
+    except FileNotFoundError:
+        print(f"Model file not found at {model_path}")
+        return None
     except Exception as e:
-        print(f"Warning: Could not load model ({str(e)}). Predictions will not be available.")
+        print(f"Error loading model: {e}")
         import traceback
         traceback.print_exc()
-        return False
+        return None
+
+def predict_with_model(model, answers):
+    """Make a prediction using the loaded model - embedded to avoid import issues"""
+    try:
+        import numpy as np
+        # Reshape to 2D array as sklearn expects
+        X = np.array(answers).reshape(1, -1)
+        # Get probability of positive class (fair use)
+        prob = model.predict_proba(X)[0][1]
+        return float(prob)
+    except Exception as e:
+        print(f"Prediction error: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
 
 # Try to load model, but don't crash if it fails
 try:
-    reload_model()
+    model = load_model()
+    if model is not None:
+        print("✓ Model loaded successfully")
+    else:
+        print("⚠ No model loaded - predictions will not be available")
 except Exception as e:
-    print(f"Model loading failed: {e}")
+    print(f"⚠ Model loading failed: {e}")
+    import traceback
+    traceback.print_exc()
 
 @app.route("/", methods=["GET"])
 @app.route("/api", methods=["GET"])
@@ -52,16 +73,9 @@ def index():
 @app.route("/predict", methods=["POST"])
 @app.route("/api/predict", methods=["POST"])
 def predict():
-    if model is None:
-        return jsonify({"error": "Model not loaded. Train a model first."}), 500
-    
     try:
-        import sys
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        if current_dir not in sys.path:
-            sys.path.insert(0, current_dir)
-        
-        import model_def
+        if model is None:
+            return jsonify({"error": "Model not loaded. Train a model first."}), 500
         
         data = request.json
         if not data:
@@ -76,7 +90,7 @@ def predict():
             return jsonify({"error": "Must provide exactly 25 answers"}), 400
         
         # Make prediction
-        score = model_def.predict(model, answers)
+        score = predict_with_model(model, answers)
         
         if score is None:
             return jsonify({"error": "Prediction failed"}), 500
