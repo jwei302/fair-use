@@ -14,11 +14,16 @@ You **do not need programming experience** to run it.
 ## Files in the Project
 
 ```text
-quiz.html              ← main website (open in browser)
-app.py                 ← optional backend to run ML model
-model_def.py           ← neural network definition
-create_dummy_model.py  ← creates a sample ML model
-model.pt               ← saved PyTorch model (created by the script)
+fair_use_calculator/
+├── quiz.html              ← Main website (open in browser)
+├── index.html             ← Alternative entry point
+├── backend/
+│   ├── app.py            ← Flask server (run this)
+│   ├── train_model.py    ← Training script (can run manually)
+│   ├── model_def.py      ← Logistic regression model code
+│   ├── training_data.db  ← Database (created automatically)
+│   ├── logistic_model.pkl ← Trained model (created after training)
+│   └── requirements.txt  ← Dependencies
 ```
 
 ## Requirements
@@ -29,78 +34,124 @@ model.pt               ← saved PyTorch model (created by the script)
 
 ---
 
-## 1. Install Dependencies
+## Quick Start Guide
 
-### Windows
-1. Open **Command Prompt** (search for “cmd” in the Start menu).
-2. Run:
-   ```bash
-   pip install flask torch flask-cors
-   ```
+### 1. Install Dependencies
 
-### Mac
-1. Open **Terminal** (Applications → Utilities → Terminal).
-2. Run:
-   ```bash
-   pip install flask torch flask-cors
-   ```
+Make sure you're in the project directory and run:
 
-## 2. Create the Model (First Time Only)
-
-In the same folder as `create_dummy_model.py`, run:
-
-### Windows
 ```bash
-python create_dummy_model.py
+pip install -r backend/requirements.txt
 ```
 
-### Mac
+Or manually install:
 ```bash
-python create_dummy_model.py
-# or, if needed:
-# python3 create_dummy_model.py
+pip install flask flask-cors scikit-learn numpy
 ```
 
-## 3. Start the ML Backend (Optional)
+### 2. Start the Flask Backend
 
-If you want the AI score:
+Navigate to the backend directory and run:
 
-### Windows
 ```bash
+cd backend
 python app.py
 ```
 
-### Mac
-```bash
-python app.py
-# or:
-# python3 app.py
+You should see:
 ```
-
-You should see something like:
-```bash
 Running on http://127.0.0.1:5000
 ```
 
-Leave this window open while using the quiz.
+**Keep this terminal window open** while using the data collection system.
 
-If you skip this step, the quiz still works using the manual score only.
-The page will simply say the AI score is “not available”.
+### 3. Open the Quiz Website
 
-## 4. Open the Quiz Website
-
-- Locate `quiz.html` in your file explorer (Finder on Mac, File Explorer on Windows).
-- Double-click `quiz.html`.
-- It should open in your default web browser.
-- Move the sliders, then click **“Evaluate Fair Use”** to see your results.
+- Locate `quiz.html` (or `index.html`) in your file explorer (Finder on Mac, File Explorer on Windows)
+- Double-click the file to open it in your default web browser
+- The quiz will load with tabs: Quiz, Training Data, Admin, Resources, Process
 
 ---
 
-## Editing Questions or Explanations
+## How to Use the System
+
+### Taking the Quiz
+1. Click the **"Quiz"** tab (default view)
+2. Answer all 25 questions using the sliders (1-9 scale)
+3. Click **"Evaluate Fair Use"**
+4. You'll see both:
+   - **Manual score** (calculated from your answers)
+   - **AI model score** (logistic regression prediction, if model is trained)
+
+### Adding Training Data
+1. Click the **"Training Data"** tab
+2. Enter a court case name (e.g., "Campbell v. Acuff-Rose Music, 510 U.S. 569 (1994)")
+3. Answer all 25 questions using the sliders (1-9 scale)
+4. Select whether the case was ruled as **Fair Use** or **Not Fair Use**
+5. Click **"Save Case"** - you'll see a success message
+
+### Training the Model
+
+The system uses **Logistic Regression** (simple, interpretable ML model).
+
+**Option 1: Train from Web Interface (Easiest)**
+1. Add at least 2-4 training cases using the Training Data tab
+2. Go to the **"Admin"** tab
+3. Click **"Train Model"** button
+4. Wait a few seconds - you'll see a success message when done
+5. The model is now ready! Use the **Quiz** tab to get AI predictions
+
+**Option 2: Train from Command Line**
+```bash
+cd backend
+python train_model.py
+```
+
+**Important:** After training via command line, restart the Flask server to load the new model:
+- Stop the server (Ctrl+C)
+- Run `python app.py` again
+
+### Viewing/Managing Data (Admin)
+1. Click the **"Admin"** tab
+2. You'll see statistics and a list of all saved cases
+3. Click **"Delete"** next to any case to remove it
+4. Click **"Refresh Data"** to reload the list
+5. Click **"Train Model"** to retrain the model with current data
+6. Click **"Export JSON"** to download all data as a JSON file
+
+### Exporting Data
+- Go to the **Admin** tab
+- Click **"Export JSON"**
+- A file will download named `training_data_YYYY-MM-DD.json`
+- This JSON contains all cases with their answers and labels
+
+---
+
+## Database & Model Storage
+
+**Database:** The system uses SQLite and creates a file called `training_data.db` in the `backend` directory. This file stores all your training data locally on your computer.
+
+**Trained Model:** After training, a file called `logistic_model.pkl` is created in the `backend` directory. This contains your trained logistic regression model.
+
+---
+
+## API Endpoints
+
+The backend provides these endpoints:
+- `POST /predict` - Get AI prediction (requires trained model)
+- `POST /api/add-case` - Save a new case
+- `GET /api/cases` - Get all cases
+- `DELETE /api/cases/<id>` - Delete a case
+- `GET /api/export-cases` - Export all cases as JSON
+- `POST /api/train-model` - Train the logistic regression model
+
+---
+
+## Customizing the Quiz
 
 If you want to customize the quiz:
 
-1. Open `quiz.html` in a text editor (VS Code, Notepad, TextEdit, etc.).
+1. Open `quiz.html` or `index.html` in a text editor (VS Code, Notepad, TextEdit, etc.).
 2. Look for sections labeled **CONFIGURATION** or the question texts.
 
 You can change:
@@ -115,14 +166,84 @@ Save the file and refresh the browser to apply changes.
 
 ## Troubleshooting
 
+### Common Issues
+
 - **`pip: command not found`**  
   → On Mac, try `pip3`. On Windows, make sure Python is added to PATH or reinstall Python from python.org.
 
-- **`ModuleNotFoundError: No module named 'flask' or 'torch'`**  
-  → Run `pip install flask torch` again.
+- **`ModuleNotFoundError: No module named 'flask'`**  
+  → Run `pip install flask flask-cors` again.
 
-- **Browser says “AI score is not available”**  
-  → Make sure `app.py` is running in a terminal window.
+- **Browser says "AI score is not available"**  
+  → Make sure `python backend/app.py` is running in a terminal window.
+
+- **"Could not connect to server"**  
+  → Make sure `python backend/app.py` is running and you see "Running on http://127.0.0.1:5000"
+
+- **Database errors**  
+  → The database file will be created automatically on first use. Make sure you have write permissions in the backend directory.
+
+- **CORS errors**  
+  → Make sure `flask-cors` is installed: `pip install flask-cors`
+
+### PyTorch DLL Error on Windows
+
+If you see: `OSError: [WinError 1114] A dynamic link library (DLL) initialization routine failed`
+
+**Good News:** The data collection system will still work! The backend will start and you can collect training data. Only the ML prediction feature won't work until PyTorch is fixed.
+
+#### Quick Fixes (try in order):
+
+**Option 1: Reinstall PyTorch (Recommended)**
+```bash
+pip uninstall torch
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+**Option 2: Install CPU-only version**
+```bash
+pip uninstall torch
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+```
+
+**Option 3: Install Visual C++ Redistributables**  
+Download and install from Microsoft:  
+https://aka.ms/vs/17/release/vc_redist.x64.exe
+
+**Option 4: Try a different PyTorch version**
+```bash
+pip uninstall torch
+pip install torch==2.0.1
+```
+
+**Option 5: Deactivate and recreate virtual environment**
+```bash
+deactivate
+rmdir /s .venv
+python -m venv .venv
+.venv\Scripts\activate
+pip install flask flask-cors torch
+```
+
+#### Verify It Works
+After trying a fix, run:
+```bash
+python backend/app.py
+```
+
+You should see:
+```
+✓ ML model loaded successfully
+Running on http://127.0.0.1:5000
+```
+
+Or if model loading fails but data collection works:
+```
+Warning: Could not load ML model (...). Data collection features will still work.
+Running on http://127.0.0.1:5000
+```
+
+Both are fine! The second just means ML predictions won't work, but you can still collect training data.
 
 ---
 
