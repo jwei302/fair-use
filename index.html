@@ -280,8 +280,75 @@
 
 <!-- PROCESS SECTION -->
 <div id="process" class="section">
-  <h1>How Your Score is Calculated</h1>
-  <p>Manual scoring and ML model explanation go here. (Educational only.)</p>
+  <h1>How This Calculator Works</h1>
+  
+  <div class="intro-card">
+    <h2>Why we built this</h2>
+    <p>
+      Fair use is one of the most important and confusing parts of copyright law. If you make or post videos online, you have probably asked yourself some version of "Is this fair use or will it get taken down?" The law does not give a simple checklist but rather looks at flexible factors and balances them in context. This calculator is meant to turn the abstract legal test into something you can explore interactively. Instead of giving a definitive answer of whether something is fair use, the calculator will help you think through how the fair use factors apply to a specific video and where your choices might create more or less risk. This calculator is focused on videos because that is where a lot of real world fair use questions show up such as reaction videos, commentary, parodies, fan edits, and remixes that reuse other people's clips or audio.
+    </p>
+  </div>
+
+  <div class="intro-card">
+    <h2>How the calculator works</h2>
+    <p>
+      The calculator is built around four statutory fair use factors, plus a "fifth factor" that captures how judges and juries react in close cases:
+    </p>
+    <p>
+      <b>Factor 1 - Purpose and character of your use:</b> This is about what you are trying to do with the original work and how you do it. Courts ask whether your use is transformative, whether it adds new meaning or message, and whether it is commercial or noncommercial.
+    </p>
+    <p>
+      <b>Factor 2 - Nature of the copyrighted work:</b> This looks at what kind of work you are using. Courts tend to give more protection to highly creative works like music videos and fiction than to factual works like news clips or instructional videos.
+    </p>
+    <p>
+      <b>Factor 3 - Amount and substantiality used:</b> This factor is about how much you use and how important that portion is. Using a small piece can favor fair use, but even a short clip can be risky if it is the "heart" of the work.
+    </p>
+    <p>
+      <b>Factor 4 - Effect on the market for the original:</b> This asks whether the new video could replace the original or harm its current or potential markets. Courts care a lot about whether your use is a substitute that reduces sales, streams or licensing.
+    </p>
+    <p>
+      <b>Factor 5 - Fifth factor, are you acting in good or bad faith:</b> Officially, courts are not supposed to decide based on whether they "like" you, but in close cases they do react to tone, intent, and fairness. A video that feels cruel, exploitative, or sloppy about rights is more likely to be treated harshly.
+    </p>
+  </div>
+
+  <div class="intro-card">
+    <h2>How to use the calculator</h2>
+    <p>
+      For each factor, you will answer five short questions about your video. Every question uses a sliding scale from 1-9 with a score of 1 meaning that "this choice is very friendly to fair use." Conversely, a score of 9 means "this choice looks more like infringement risk." For example, for the "amount used" factor, a question might ask how much of the original audio you use. Sliding to 1 means "none of the original audio," and sliding to 9 means "the entire original audio track." We chose a 1-9 scale instead of yes or no answers because fair use is almost never all or nothing. Courts talk about uses being more or less transformative, more or less commercial, or using more or less of the original. As Brad Rosen repeatedly put it, "Where do you draw the line?" A slider lets you place your video somewhere on the spectrum instead of forcing a simple yes or no.
+    </p>
+  </div>
+
+  <div class="intro-card">
+    <h2>Why five questions per factor</h2>
+    <p>
+      Each factor covers more than one idea. For example, the first factor is not just "commercial or noncommercial." It also includes transformation, commentary, and parody. If there was only one question per factor, the law would be grossly oversimplified. Five questions per factor lets the calculator touch on different aspects courts actually look at while keeping the quiz short enough to finish in a few minutes.
+    </p>
+  </div>
+
+  <div class="intro-card">
+    <h2>How scoring works</h2>
+    <p>
+      After you answer all 25 questions, the calculator does two things.
+    </p>
+    <p>
+      <b>Factor scores:</b> For each factor, we take the average of your five answers. This gives you 5 scores between 1-9, one per factor. Lower scores suggest the facts you reported are more friendly to a fair use argument for that factor. Higher scores suggest more risk on that factor.
+    </p>
+    <p>
+      <b>Overall risk score:</b> The five factor scores are then combined into one overall "risk" score. In our basic version, a weighted average is used where Factor 1 and Factor 4 are weighted a little more while Factor 2 and Factor 3 carry moderate weight and Factor 5 carries a little less weight. This reflects how courts often treat transformation and market harm as especially important, while also recognizing that tone and good faith can influence close cases. Your resulting score will fall into three bands.
+    </p>
+    <ul style="margin-left: 20px; line-height: 1.8;">
+      <li><b>1 to 3:</b> leans toward fair use</li>
+      <li><b>4 to 6:</b> is mixed or uncertain</li>
+      <li><b>7 to 9:</b> factor leans against fair use</li>
+    </ul>
+  </div>
+
+  <div class="intro-card">
+    <h2>What this tool is and what it is not</h2>
+    <p>
+      This tool is meant to be a teaching and reflection aid, allowing you to see how different choices affect each fair use factor as well as a way to connect your own video ideas to the fair use test that courts use. This tool is not legal advice, a guarantee that any given video is or is not fair use, or a substitute for talking to a lawyer in a real dispute. The scores and blurbs are based on typical patterns in fair use cases, but real outcomes always depend on specific facts, context, and the court involved. Videos with similar answers could still be treated differently in the real world.
+    </p>
+  </div>
 </div>
 
 
@@ -370,45 +437,74 @@ const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:5000' 
 // Plain-English question texts (1–25)
 const questionTexts = {
   // Factor 1: Purpose & Character
-  1: "How much does your use add new meaning or purpose compared to the original?",
-  2: "To what extent would an ordinary viewer see your use as transformative rather than just copying?",
-  3: "Does your use mainly comment on, critique, or analyze the original work?",
-  4: "How strongly is your use connected to education, research, scholarship, or review?",
-  5: "How different is your purpose from the original creator’s purpose for the work?",
+  1: "How transformative is your video compared to the original?",
+  2: "How much does your video comment on, critique, or parody the original work?",
+  3: "What is the main purpose of your video?",
+  4: "How much creative effort did you put into elements that are not from the original work?",
+  5: "How would you describe your intent in using the original material?",
 
   // Factor 2: Nature of the Work
-  6: "Is the original work more factual, informational, or documentary than creative or expressive?",
-  7: "Is the original material widely available to the public (for example, published or posted)?",
-  8: "Does your use focus more on facts, data, or information than on artistic or expressive elements?",
-  9: "Would the public benefit from better understanding the material you are using?",
-  10:"Is the original work already published rather than an unpublished draft or private work?",
+  6: "How creative is the original work you are using?",
+  7: "Was the original work published before you used it?",
+  8: "How \"finished\" is the original work?",
+  9: "Does your video rely on the most creative aspects of the original, or mainly on factual parts?",
+  10: "Is the original work the kind courts tend to give strong protection to?",
 
   // Factor 3: Amount & Substantiality
-  11:"How small a portion of the original are you using relative to the whole work?",
-  12:"Did you avoid taking the most memorable or central “heart” of the original work?",
-  13:"Is the amount you used no more than necessary to make your point or achieve your purpose?",
-  14:"Did you make a deliberate effort to limit copying instead of taking extra material “just in case”?",
-  15:"Could your project still work if you used slightly less of the original work?",
+  11: "How much of the original video's total running time do you use?",
+  12: "How much of the original audio do you use?",
+  13: "Do you use the \"heart\" of the original work, the most memorable or important part?",
+  14: "Are the copied parts continuous or broken up?",
+  15: "Could someone watch your video instead of the original and feel like they have \"seen it\"?",
 
   // Factor 4: Market Effect
-  16:"Does your use avoid substituting for or replacing the original work for most audiences?",
-  17:"Is it unlikely that your use will reduce sales, licensing opportunities, or views for the original?",
-  18:"Does your project target a clearly different audience, context, or use than the original?",
-  19:"Is it unlikely that the original creator or publisher will lose meaningful income because of your use?",
-  20:"Are people who see your work still likely to seek out or pay for the original if they want it?",
+  16: "How likely is it that your video could replace the original for most viewers?",
+  17: "Does your video target the same audience as the original work?",
+  18: "How does your video affect people's reasons to watch or buy the original?",
+  19: "Is your video posted in the same type of market space as the original?",
+  20: "Could your video harm current or potential licensing markets for the original?",
 
   // Factor 5: Other considerations
-  21:"Are you acting in good faith—for example, not trying to pass the work off as entirely your own?",
-  22:"Did you avoid adding elements that are misleading, offensive, or likely to be viewed as bad-faith use?",
-  23:"Have you clearly distinguished your work from the original creator (for example, through context or labeling)?",
-  24:"Have you avoided suggesting or implying that the original creator sponsors or endorses your project?",
-  25:"Did you use only what felt genuinely necessary rather than copying out of convenience or habit?"
+  21: "How respectful is the overall tone of your video toward the people or works you are using?",
+  22: "How would a judge or jury likely feel about your motives if they watched the video?",
+  23: "How honestly do you present your relationship to the original work and its owner?",
+  24: "Do you rely on disclaimers or \"no copyright intended\" type statements instead of thinking through fair use?",
+  25: "If the original creator saw your video, how likely is it that they would feel you acted unfairly or in bad faith?"
 };
 
 // Reverse-scored questions (1..25) if any (e.g., where 9 is worst, 1 is best)
 const reverseQuestions = [
   // Example: 15, 19
 ];
+
+// Scale descriptions for each question (1-9 endpoints)
+const scaleDescriptions = {
+  1: { low: "My video adds a new message, meaning, or purpose and clearly changes how people experience the original", high: "My video keeps the same message and purpose as the original and mostly just copies it" },
+  2: { low: "The main point of my video is to comment on, critique, or parody the original", high: "My video does not comment on the original at all and just uses it as content or background" },
+  3: { low: "Noncommercial, educational, or purely personal use with no money involved", high: "Commercial use where I am trying to make money or promote a brand with this video" },
+  4: { low: "Most of the value in my video comes from my own new scripting, editing, performance, or commentary", high: "Most of the value in my video comes from the original clip or song, and I added very little" },
+  5: { low: "I used it in good faith to inform, educate, or meaningfully transform the original", high: "I used it mainly because it is popular and attention grabbing, without much transformation" },
+  6: { low: "The original is mostly factual or informational", high: "The original is highly creative, like a music video, movie, or scripted show" },
+  7: { low: "It was already widely published and publicly available", high: "It was not yet published or was hard to access when I used it" },
+  8: { low: "The original is a simple or raw piece of content, like a news clip or short update", high: "The original is a polished, fully produced work that involved significant creative effort" },
+  9: { low: "I mainly rely on factual or low creativity parts of the original", high: "I rely heavily on the most creative and expressive parts of the original" },
+  10: { low: "The original is more like news, information, or instructions", high: "The original is more like music, film, animation, or fiction" },
+  11: { low: "I use no footage or only very short clips compared to the full length", high: "I use most or all of the original video's running time" },
+  12: { low: "I use none of the original audio, or only very short snippets", high: "I use most or all of the original audio track" },
+  13: { low: "I avoid the most memorable parts and use less central sections", high: "I focus on the most recognizable or iconic parts of the original" },
+  14: { low: "I only use brief, broken up clips mixed with a lot of my own material", high: "I use long, continuous segments of the original with little interruption" },
+  15: { low: "No, my video does not let someone experience the original as a substitute", high: "Yes, someone could watch mine and feel no need to watch the original" },
+  16: { low: "Very unlikely, my video serves a different purpose and audience", high: "Very likely, my video could serve as a direct replacement for the original" },
+  17: { low: "My video is aimed at a different audience or community", high: "My video targets the same audience as the original" },
+  18: { low: "It encourages people to watch, buy, or subscribe to the original", high: "It makes people less likely to pay for or watch the original" },
+  19: { low: "It appears in a different setting, such as an educational site or a niche channel", high: "It appears in the same kind of space as the original, such as a mainstream commercial platform competing for views" },
+  20: { low: "It is unlikely to interfere with any normal or expected licensing for the original", high: "It could easily undercut or replace typical licensing uses of the original" },
+  21: { low: "The tone is critical or playful but not hateful, cruel, or needlessly offensive", high: "The tone is harsh, degrading, or likely to be seen as morally offensive or abusive" },
+  22: { low: "It would look like you acted in good faith, with a clear expressive or educational purpose", high: "It would look like you acted mainly to provoke, shock, or take advantage of someone else's work or reputation" },
+  23: { low: "You are clear that you are not the original creator, and you do not pretend to be endorsed or authorized", high: "You blur or hide the fact that this is someone else's work, or suggest endorsement that does not exist" },
+  24: { low: "I do not rely on disclaimers to justify my use, and I have tried to understand the fair use factors", high: "I mostly assume that writing a disclaimer or \"fair use\" in the description will protect me, even if the video is basically a copy" },
+  25: { low: "They might disagree with my use, but they would likely see a real transformative point or commentary", high: "They would likely feel I exploited their work or reputation without adding meaningful value" }
+};
 
 // Weights for each question (index 1..25)
 const weights = Array(26).fill(1);
@@ -483,37 +579,37 @@ const factorMeta = {
 // Per-factor descriptions
 const factorDescriptions = {
   purpose: {
-    low:  "Your answers suggest the purpose and character...",
-    med:  "Your use is partly transformative...",
-    high: "Your answers indicate a strongly transformative..."
+    low:  "Your answers suggest that the purpose and character of your video are friendly to fair use. You describe a use that is relatively transformative, adds your own creativity or commentary, and does not simply reuse the original for the same purpose. These choices tend to support a fair use argument on this factor.",
+    med:  "On Factor 1, your answers fall in the middle. Some details point toward transformation or commentary, while others look closer to straightforward copying or commercial use. A court could see the purpose and character of your video either way, so changes here could meaningfully strengthen or weaken a fair use claim.",
+    high: "Your answers suggest that the purpose and character of your video lean against fair use. The use looks closer to using the original for the same purpose, with limited transformation or commentary, and may be primarily commercial. This would likely be a weak point in a fair use argument."
   },
   nature: {
-    low:  "You appear to be using creative, expressive...",
-    med:  "The work you are using is partly factual...",
-    high: "You seem to be using mainly factual..."
+    low:  "Your answers suggest that the original work is more factual, informational, or less creatively expressive. Courts are generally more open to fair use when the source material is factual or published, so this factor would tend to support your fair use argument.",
+    med:  "On Factor 2, your answers sit in the middle. The original work has both factual and creative elements, or it is creative but already widely published. This factor would probably not be decisive either way and may carry less weight compared to the other factors in your situation.",
+    high: "Your answers suggest that the original work is highly creative, polished, and expressive, such as a music video, film, or scripted show, and possibly not widely available at the time of use. Courts tend to give stronger protection to this kind of work, so this factor would likely weigh against fair use."
   },
   amount: {
-    low:  "You are using a large amount...",
-    med:  "You have limited your use somewhat...",
-    high: "You appear to use a relatively small portion..."
+    low:  "Your answers suggest that you used a relatively small portion of the original or avoided its most important and memorable parts. You may also have broken the material into short clips surrounded by your own content. This limited and careful use tends to support a fair use argument on this factor.",
+    med:  "On Factor 3, your answers indicate that you used a moderate amount of the original, or included some key moments but not in a way that completely replaces the original. A court could see this as reasonable for your purpose, or as more than needed. This factor is neither clearly helpful nor clearly harmful to your fair use claim.",
+    high: "Your answers suggest that you used a large portion of the original work, possibly including its most iconic or central parts, in long or continuous segments. Someone might be able to experience most of the original by watching your video. This level of copying would likely weigh against fair use on this factor."
   },
   market: {
-    low:  "Your use may substitute for the original...",
-    med:  "It’s not clear whether your use will meaningfully affect the market...",
-    high: "Your use seems unlikely to replace the original..."
+    low:  "Your answers suggest that your video is not likely to harm the market for the original work. It seems to serve a different purpose or audience, may encourage viewers to seek out the original, and is unlikely to replace normal sales, streams, or licenses. This tends to support a fair use argument on this factor.",
+    med:  "On Factor 4, your answers show that the market impact is not clear. Your video might overlap somewhat with the original's audience or viewing spaces, but it is not an obvious substitute. A court would likely look closely at real world evidence here. This factor could become more or less risky depending on how and where the video is shared.",
+    high: "Your answers suggest that your video could act as a substitute for the original or interfere with its normal markets or licensing opportunities. It may target the same audience on the same platforms and could reduce the need to watch or pay for the original. Courts take market harm seriously, so this factor would likely weigh strongly against fair use."
   },
   other: {
-    low:  "Your answers suggest potential concerns...",
-    med:  "You appear to be acting in reasonably good faith...",
-    high: "You seem to be acting in good faith..."
+    low:  "Your answers suggest that you look like a \"good actor\" in the eyes of a judge or jury. The tone of your video is not needlessly cruel or hateful, you are honest about your relationship to the original work, and you are not just hiding behind disclaimers. Even though this is not an official factor, this kind of good faith behavior can make a court more comfortable with a fair use argument in a close case.",
+    med:  "On Factor 5, your results are in the middle. Nothing about your video screams obvious bad faith, but there are also choices that might raise questions about tone, honesty, or motives. In a close case, a judge or jury might see your behavior as neutral rather than clearly sympathetic. This does not decide fair use by itself, but it does not give you much extra help.",
+    high: "Your answers suggest that a judge or jury could see you as acting in bad faith. The tone may feel harsh or exploitative, you may blur or misrepresent your connection to the original, or you may be relying on \"no copyright intended\" type language instead of thinking through fair use. Courts officially should not punish people just for being offensive, but in practice this kind of behavior can make them more willing to rule against fair use when the other factors are close."
   }
 };
 
 // Overall descriptions
 const overallDescriptions = {
-  low:  "Based on your answers, your use appears unlikely...",
-  med:  "Your answers suggest a borderline situation...",
-  high: "Overall, your answers describe a use that aligns..."
+  low:  "Overall, your answers suggest a relatively strong fair use argument. Several factors lean in your favor and your choices look more like transformation or commentary than substitution. This does not guarantee fair use in court, but it means your video has many fair use friendly features.",
+  med:  "Overall, your answers point to a mixed picture. Some factors lean toward fair use while others lean toward infringement. A court could go either way, and small changes in how you use the original video or audio might push your situation in a clearer direction.",
+  high: "Overall, your answers suggest a higher risk that your video would be seen as infringement rather than fair use. Several factors lean against fair use and your use of the original work looks more like a substitute than a new, transformative work. This does not mean you would automatically lose in court, but it does mean your fair use argument is relatively weak."
 };
 
 // =====================================================
@@ -525,14 +621,15 @@ function renderQuestions() {
   for (let i = 1; i <= 25; i++) {
     const block = document.createElement("div");
     block.className = "question-block";
+    const scale = scaleDescriptions[i] || { low: "1 (less supportive)", high: "9 (more supportive)" };
     block.innerHTML = `
       <div class="question-label"><b>Q${i}.</b> ${questionTexts[i]}</div>
       <input type="range" min="1" max="9" value="5" id="q${i}"
              oninput="document.getElementById('v${i}').innerText=this.value">
       <div class="label-row">
-        <span>1 (less supportive)</span>
+        <span style="font-size: 12px;">1: ${scale.low}</span>
         <span class="score-value" id="v${i}">5</span>
-        <span>9 (more supportive)</span>
+        <span style="font-size: 12px;">9: ${scale.high}</span>
       </div>
     `;
     container.appendChild(block);
@@ -607,7 +704,7 @@ async function calculateScore() {
   // build result HTML
   let html = `
     <div class="results-card">
-      <div class="results-title">Overall Fair Use Snapshot</div>
+      <div class="results-title">Overall Fair Use Risk Assessment</div>
       <div class="results-sub">These scores are educational only and do not constitute legal advice.</div>
 
       <div class="score-row">
@@ -684,14 +781,15 @@ function renderTrainingQuestions() {
   for (let i = 1; i <= 25; i++) {
     const block = document.createElement("div");
     block.className = "question-block";
+    const scale = scaleDescriptions[i] || { low: "1 (less supportive)", high: "9 (more supportive)" };
     block.innerHTML = `
       <div class="question-label"><b>Q${i}.</b> ${questionTexts[i]}</div>
       <input type="range" min="1" max="9" value="5" id="tq${i}"
              oninput="document.getElementById('tv${i}').innerText=this.value">
       <div class="label-row">
-        <span>1 (less supportive)</span>
+        <span style="font-size: 12px;">1: ${scale.low}</span>
         <span class="score-value" id="tv${i}">5</span>
-        <span>9 (more supportive)</span>
+        <span style="font-size: 12px;">9: ${scale.high}</span>
       </div>
     `;
     container.appendChild(block);
