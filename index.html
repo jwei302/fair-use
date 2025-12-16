@@ -358,9 +358,10 @@ function showTab(tab){
 
 <!-- ALL YOUR ORIGINAL JAVASCRIPT EXACTLY BELOW -->
 <script>
-/* === EVERYTHING from your long script remains unchanged === */
-/* paste your ENTIRE JS code here — from INTRO through scoring */
-/* (it continues exactly as in your version, unchanged) */
+// Base URL for API calls:
+// - When opened from a file (file://), talk to local Flask at 127.0.0.1:5000
+// - When hosted on a server (http/https), use same origin (empty prefix)
+const API_BASE = window.location.protocol === 'file:' ? 'http://127.0.0.1:5000' : '';
 
 // =====================================================
 // CONFIGURATION
@@ -572,7 +573,7 @@ async function calculateScore() {
   // call ML backend
   let mlPercent = NaN;
   try {
-    const response = await fetch("/predict", {
+    const response = await fetch(API_BASE + "/predict", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ answers: original })
@@ -725,7 +726,7 @@ async function saveTrainingCase() {
   }
 
   try {
-    const response = await fetch('/api/add-case', {
+    const response = await fetch(API_BASE + '/api/add-case', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -766,7 +767,7 @@ function showSaveMessage(message, type) {
 
 async function loadAdminData() {
   try {
-    const response = await fetch('/api/cases');
+    const response = await fetch(API_BASE + '/api/cases');
     const result = await response.json();
     
     if (!response.ok) {
@@ -839,7 +840,7 @@ async function deleteCase(caseId) {
   }
 
   try {
-    const response = await fetch(`/api/cases/${caseId}`, {
+    const response = await fetch(`${API_BASE}/api/cases/${caseId}`, {
       method: 'DELETE'
     });
 
@@ -869,7 +870,7 @@ async function trainModel() {
   msgDiv.style.display = 'block';
   
   try {
-    const response = await fetch('/api/train-model', {
+    const response = await fetch(API_BASE + '/api/train-model', {
       method: 'POST'
     });
     
@@ -911,7 +912,7 @@ async function trainModel() {
 
 async function exportTrainingData() {
   try {
-    const response = await fetch('/api/export-cases');
+    const response = await fetch(API_BASE + '/api/export-cases');
     const result = await response.json();
     
     if (!response.ok) {
