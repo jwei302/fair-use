@@ -237,12 +237,16 @@ def analyze_video():
 @app.route("/api/analyze-video-client", methods=["POST"])
 def analyze_video_client():
     """Analyze video using client-extracted frames and video file for audio"""
-    import openai
-    import base64
-    import tempfile
-    
     try:
+        import base64
+        import tempfile
+        from openai import OpenAI
+        
+        # Get request data
         data = request.json
+        if not data:
+            return jsonify({"error": "No JSON data provided"}), 400
+            
         frames = data.get('frames', [])
         video_base64 = data.get('video_base64')
         filename = data.get('filename', 'video.mp4')
@@ -251,9 +255,11 @@ def analyze_video_client():
             return jsonify({"error": "No frames provided"}), 400
         
         # Initialize OpenAI
-        openai.api_key = os.getenv("OPENAI_API_KEY")
-        if not openai.api_key:
-            return jsonify({"error": "OpenAI API key not configured"}), 500
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return jsonify({"error": "OpenAI API key not configured. Please set OPENAI_API_KEY in Vercel environment variables."}), 500
+        
+        client = OpenAI(api_key=api_key)
         
         # Initialize OpenAI client (new SDK v1.0+)
         from openai import OpenAI
@@ -388,9 +394,13 @@ Respond ONLY with valid JSON:
         
     except Exception as e:
         import traceback
+        error_trace = traceback.format_exc()
+        print(f"ERROR in analyze_video_client: {str(e)}")
+        print(error_trace)
         return jsonify({
             "error": f"Analysis failed: {str(e)}",
-            "traceback": traceback.format_exc()
+            "error_type": type(e).__name__,
+            "traceback": error_trace
         }), 500
 
 # This is the entry point for Vercel

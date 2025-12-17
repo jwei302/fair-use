@@ -1668,8 +1668,20 @@ async function uploadAndAnalyzeVLM() {
     });
     
     if (!analysisResponse.ok) {
-      const errorData = await analysisResponse.json();
-      throw new Error(errorData.error || 'Analysis failed');
+      let errorMessage = 'Analysis failed';
+      try {
+        const errorData = await analysisResponse.json();
+        errorMessage = errorData.error || errorMessage;
+        if (errorData.traceback) {
+          console.error('Server traceback:', errorData.traceback);
+        }
+      } catch (parseError) {
+        // Response is not JSON (might be HTML error page)
+        const errorText = await analysisResponse.text();
+        console.error('Server returned non-JSON response:', errorText.substring(0, 500));
+        errorMessage = `Server error (${analysisResponse.status}). Check that OpenAI API key is configured in Vercel.`;
+      }
+      throw new Error(errorMessage);
     }
     
     updateVLMProgress(70, 'Analyzing content with GPT-4V...');
