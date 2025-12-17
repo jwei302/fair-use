@@ -2,3 +2,8 @@ flask
 flask-cors
 scikit-learn
 numpy
+openai
+boto3
+opencv-python-headless
+ffmpeg-python
+python-dotenv

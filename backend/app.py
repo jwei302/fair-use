@@ -4,12 +4,31 @@ import sqlite3
 import json
 from datetime import datetime
 import os
+import tempfile
+import traceback
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)   # <-- REQUIRED so browser is allowed to POST from quiz.html
 
 # Database setup
 DB_PATH = "training_data.db"
+
+# Initialize cloud storage and video analysis modules
+cloud_storage = None
+def init_cloud_storage():
+    """Initialize cloud storage on startup"""
+    global cloud_storage
+    try:
+        from cloud_storage import get_storage
+        cloud_storage = get_storage()
+    except Exception as e:
+        print(f"Warning: Could not initialize cloud storage ({str(e)}). Video analysis features will not work.")
+
+init_cloud_storage()
 
 def init_db():
     """Initialize the SQLite database with cases table"""
@@ -217,6 +236,107 @@ def train_model_endpoint():
         import traceback
         error_msg = str(e)
         traceback_str = traceback.format_exc()
+        return jsonify({
+            "error": error_msg,
+            "traceback": traceback_str
+        }), 500
+
+# =====================================================
+# VIDEO ANALYSIS ENDPOINTS
+# =====================================================
+
+@app.route("/api/get-upload-url", methods=["GET"])
+def get_upload_url():
+    """Generate a presigned URL for uploading video to S3"""
+    if cloud_storage is None:
+        return jsonify({"error": "Cloud storage not configured"}), 500
+    
+    try:
+        # Generate unique video key
+        video_key = cloud_storage.generate_video_key('mp4')
+        
+        # Get presigned URL
+        result = cloud_storage.get_presigned_upload_url(video_key, expiration=600)
+        
+        return jsonify(result), 200
+    except Exception as e:
+        print(f"Error generating upload URL: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/analyze-video", methods=["POST"])
+def analyze_video():
+    """Analyze a video for fair-use risk assessment"""
+    if cloud_storage is None:
+        return jsonify({"error": "Cloud storage not configured"}), 500
+    
+    try:
+        data = request.json
+        video_key = data.get("video_key")
+        
+        if not video_key:
+            return jsonify({"error": "video_key is required"}), 400
+        
+        # Check if video exists in S3
+        if not cloud_storage.video_exists(video_key):
+            return jsonify({"error": "Video not found in storage"}), 404
+        
+        print(f"\n{'='*60}")
+        print(f"Starting video analysis: {video_key}")
+        print(f"{'='*60}\n")
+        
+        # Create temporary directory for processing
+        with tempfile.TemporaryDirectory() as temp_dir:
+            video_path = os.path.join(temp_dir, 'video.mp4')
+            
+            # Download video from S3
+            print("1. Downloading video from S3...")
+            if not cloud_storage.download_video(video_key, video_path):
+                return jsonify({"error": "Failed to download video"}), 500
+            
+            # Process video (extract frames and audio)
+            print("2. Processing video...")
+            from video_processor import process_video_for_analysis
+            frames, audio_path, video_info = process_video_for_analysis(video_path)
+            
+            if not frames or len(frames) == 0:
+                return jsonify({"error": "No frames could be extracted from video"}), 500
+            
+            # Transcribe audio
+            print("3. Transcribing audio...")
+            from video_analyzer import transcribe_audio
+            transcript = transcribe_audio(audio_path) if audio_path else None
+            
+            # Analyze video content
+            print("4. Analyzing video content with GPT-4V...")
+            from video_analyzer import analyze_video_complete
+            analysis_result = analyze_video_complete(frames, transcript)
+            
+            # Clean up audio file
+            if audio_path and os.path.exists(audio_path):
+                os.remove(audio_path)
+        
+        # Optionally delete video from S3 (uncomment if you want auto-cleanup)
+        # cloud_storage.delete_video(video_key)
+        
+        print(f"\n{'='*60}")
+        print(f"Video analysis complete!")
+        print(f"{'='*60}\n")
+        
+        # Return results
+        return jsonify({
+            "success": True,
+            "video_info": video_info,
+            "frames_analyzed": len(frames),
+            "has_transcript": transcript is not None,
+            "transcript_length": len(transcript) if transcript else 0,
+            "analysis": analysis_result
+        }), 200
+        
+    except Exception as e:
+        error_msg = str(e)
+        traceback_str = traceback.format_exc()
+        print(f"Error analyzing video: {error_msg}")
+        print(traceback_str)
         return jsonify({
             "error": error_msg,
             "traceback": traceback_str
