@@ -1038,7 +1038,7 @@ async function calculateScore() {
   }
   const minPossible = 1 * totalWeight;
   const maxPossible = 9 * totalWeight;
-  const manualPercent = ((weightedSum - minPossible) / (maxPossible - minPossible)) * 100;
+  const manualPercent = 100 - ((weightedSum - minPossible) / (maxPossible - minPossible)) * 100;
 
   // call ML backend
   let mlPercent = NaN;
@@ -1065,14 +1065,14 @@ async function calculateScore() {
     }
     const fMin = 1 * wTot;
     const fMax = 9 * wTot;
-    factorScores[key] = ((wSum - fMin) / (fMax - fMin)) * 100;
+    factorScores[key] = 100 -((wSum - fMin) / (fMax - fMin)) * 100;
   }
 
   // overall description
   let overallText;
-  if (manualPercent < 33.333) overallText = overallDescriptions.low;
+  if (manualPercent < 33.333) overallText = overallDescriptions.high;
   else if (manualPercent < 66.666) overallText = overallDescriptions.med;
-  else overallText = overallDescriptions.high;
+  else overallText = overallDescriptions.low;
 
   // build result HTML
   let html = `
@@ -1119,8 +1119,8 @@ async function calculateScore() {
   // add factor blocks
   for (const key in factorScores) {
     const p = factorScores[key];
-    const desc = p < 33.333 ? factorDescriptions[key].low :
-                 p < 66.666 ? factorDescriptions[key].med : factorDescriptions[key].high;
+    const desc = p < 33.333 ? factorDescriptions[key].high :
+                 p < 66.666 ? factorDescriptions[key].med : factorDescriptions[key].low;
     const meta = factorMeta[key];
 
     html += `
