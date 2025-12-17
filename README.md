@@ -247,11 +247,225 @@ Both are fine! The second just means ML predictions won't work, but you can stil
 
 ---
 
+---
+
+## Video Analysis Feature (Research Tool)
+
+### Overview
+
+This project now includes a **Video Fair-Use Risk Analysis** tool that uses state-of-the-art AI to analyze video content and assess fair-use risk.
+
+**Research Question:** How well can vision-language models (VLMs) assess fair-use risk for video content?
+
+This tool evaluates:
+- **Video Understanding:** Can GPT-4V analyze frames and audio to understand content?
+- **Content Identification:** Can it identify similar/source copyrighted material?
+- **Legal Reasoning:** Can it apply the four statutory fair-use factors?
+
+### Setup Requirements
+
+#### 1. OpenAI API Key (Required)
+
+Get an API key from [OpenAI Platform](https://platform.openai.com/api-keys)
+
+**Cost Estimates:**
+- GPT-4V (gpt-4o): ~$0.01-0.03 per frame
+- Whisper: ~$0.006 per minute of audio
+- **Total per video:** ~$0.20-0.50 for a 2-minute video with 30 frames
+
+#### 2. AWS S3 Setup (Required)
+
+**Create an S3 Bucket:**
+1. Go to AWS Console → S3 → Create Bucket
+2. Choose a name (e.g., `fair-use-videos`)
+3. Select region (e.g., `us-east-1`)
+4. Keep "Block all public access" **enabled** (we use presigned URLs)
+
+**Configure CORS:**
+Go to bucket → Permissions → CORS, add:
+```json
+[
+    {
+        "AllowedHeaders": ["*"],
+        "AllowedMethods": ["PUT", "POST", "GET"],
+        "AllowedOrigins": ["*"],
+        "ExposeHeaders": ["ETag"],
+        "MaxAgeSeconds": 3000
+    }
+]
+```
+
+**Create IAM User:**
+1. Go to IAM → Users → Create User
+2. Attach policy: Create custom policy with:
+```json
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:DeleteObject"
+            ],
+            "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*"
+        }
+    ]
+}
+```
+3. Create access keys and save them securely
+
+#### 3. FFmpeg (Required)
+
+**Mac:**
+```bash
+brew install ffmpeg
+```
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt update
+sudo apt install ffmpeg
+```
+
+**Windows:**
+Download from [ffmpeg.org](https://ffmpeg.org/download.html)
+
+#### 4. Environment Variables
+
+Create `backend/.env` file:
+```bash
+# OpenAI
+OPENAI_API_KEY=sk-your-key-here
+
+# AWS S3
+AWS_ACCESS_KEY_ID=your-access-key-id
+AWS_SECRET_ACCESS_KEY=your-secret-access-key
+AWS_S3_BUCKET_NAME=your-bucket-name
+AWS_REGION=us-east-1
+```
+
+**Security Note:** Never commit `.env` to git! It's already in `.gitignore`.
+
+### Installation
+
+Install all dependencies including video analysis:
+```bash
+cd backend
+pip install -r requirements.txt
+```
+
+This installs:
+- `openai` - OpenAI API client
+- `boto3` - AWS SDK for S3
+- `opencv-python-headless` - Video frame extraction
+- `ffmpeg-python` - Audio extraction
+
+### Usage
+
+1. Start the Flask backend:
+```bash
+cd backend
+python app.py
+```
+
+2. Open `video-analysis.html` in your browser, or navigate via the main site navbar
+
+3. Upload an MP4 video (max 200MB recommended)
+
+4. Wait for processing (typically 30-90 seconds):
+   - Video uploads to S3
+   - Frames extracted (1-2 FPS, max 30 frames)
+   - Audio transcribed with Whisper
+   - Content analyzed with GPT-4V
+   - Fair-use evaluation generated
+
+5. Review results:
+   - Overall risk score (0-100)
+   - Similar content identified
+   - Four-factor analysis with explanations
+   - Confidence/completeness score
+
+### How It Works
+
+1. **Upload:** Video uploads directly to S3 via presigned URL (bypasses Flask/Vercel 4.5MB limit)
+2. **Processing:** Backend downloads video, extracts frames (1-2 FPS) and audio
+3. **Transcription:** Whisper API transcribes audio to text
+4. **Similarity Detection:** GPT-4V analyzes frames to identify source material
+5. **Fair-Use Evaluation:** GPT-4V evaluates all four statutory factors:
+   - Factor 1: Purpose & Character of Use
+   - Factor 2: Nature of Copyrighted Work
+   - Factor 3: Amount & Substantiality
+   - Factor 4: Effect on Market
+6. **Results:** Comprehensive report with risk scores and explanations
+
+### API Endpoints (Video Analysis)
+
+- `GET /api/get-upload-url` - Get presigned S3 URL for video upload
+- `POST /api/analyze-video` - Analyze uploaded video
+  - Body: `{"video_key": "videos/..."}`
+  - Returns: Full analysis with scores and explanations
+
+### Cost Management
+
+**Typical costs per video:**
+- Whisper (2 min audio): ~$0.012
+- GPT-4V (30 frames): ~$0.30-0.60
+- S3 storage: <$0.01/GB/month
+- **Total:** ~$0.35-0.65 per video
+
+**Cost optimization tips:**
+- Limit to first 2 minutes of long videos
+- Sample fewer frames (10-20 instead of 30)
+- Use "low detail" mode for some frames
+- Set S3 lifecycle policy to auto-delete after 1 day
+
+### Limitations & Important Notes
+
+**⚠️ CRITICAL: This is a RESEARCH TOOL, not legal advice**
+
+- Scores are **heuristic assessments** only
+- Lower risk ≠ fair use; higher risk ≠ infringement
+- Only a court can make binding fair-use determinations
+- Do NOT rely on this for actual copyright decisions
+
+**Technical Limitations:**
+- Vercel timeout: 60s (Pro tier) or 10s (Hobby tier)
+- Longer videos may require separate backend (not Vercel Functions)
+- Maximum video size: ~500MB (constrained by `/tmp` space)
+- Frame analysis limited to visual content (no OCR/detailed text reading)
+
+### Troubleshooting Video Analysis
+
+**"Cloud storage not configured"**
+→ Check that all AWS environment variables are set in `.env`
+
+**"FFmpeg not found"**
+→ Install ffmpeg: `brew install ffmpeg` (Mac) or `apt install ffmpeg` (Linux)
+
+**"Failed to download video"**
+→ Check S3 bucket permissions and IAM user access keys
+
+**"OpenAI API error"**
+→ Verify `OPENAI_API_KEY` is correct and has credits
+
+**Processing times out**
+→ Try shorter video or fewer frames. Consider running Flask on dedicated server instead of Vercel.
+
+**High API costs**
+→ Reduce `max_frames` in `video_processor.py` or `fps_sample_rate`
+
+---
+
 ## Important Note
 
 This tool is for **education and discussion only**.  
 It is **not legal advice**, and it does **not** tell you definitively whether a use is or is not fair use.  
 Only a court can do that.
+
+**For the video analysis feature specifically:**  
+The AI's assessment is based on pattern recognition and training data, not legal expertise. Treat all scores as experimental research outputs, not legal guidance.
 
 
 
