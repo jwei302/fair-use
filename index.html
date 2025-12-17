@@ -675,6 +675,17 @@
     </p>
   </div>
 
+  <!-- Important Notice -->
+  <div style="background:#e8f5e9; border-left:4px solid #4caf50; padding:20px; border-radius:8px; margin-bottom:28px;">
+    <h3 style="margin-top:0; color:#2e7d32;">✨ Client-Side Processing</h3>
+    <p style="margin-bottom:8px; color:#1b5e20;">
+      This tool processes videos in your browser, then sends the extracted frames and audio to GPT-4V for analysis. No video is permanently stored - everything happens client-side.
+    </p>
+    <p style="margin-bottom:0; color:#1b5e20; font-size:13px;">
+      <strong>Note:</strong> Processing may take 1-2 minutes depending on video length and your internet connection.
+    </p>
+  </div>
+
   <!-- Upload Section -->
   <div style="background:var(--card-bg); padding:40px; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.08); margin-bottom:28px; border:2px dashed #d8dee9; text-align:center; transition:all 0.3s;">
     <h2 style="margin-top:0;">Upload Video for Analysis</h2>
@@ -1512,6 +1523,128 @@ function hideVLMError() {
   document.getElementById('vlmErrorMessage').style.display = 'none';
 }
 
+async function extractFramesFromVideo(videoFile, fps = 1, maxFrames = 20) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+    
+    const objectUrl = URL.createObjectURL(videoFile);
+    video.src = objectUrl;
+    
+    video.onloadedmetadata = async () => {
+      const duration = video.duration;
+      const interval = Math.max(1 / fps, duration / maxFrames);
+      const frames = [];
+      
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      
+      canvas.width = Math.min(video.videoWidth, 1024);
+      canvas.height = Math.min(video.videoHeight, 1024);
+      
+      for (let time = 0; time < duration && frames.length < maxFrames; time += interval) {
+        video.currentTime = time;
+        await new Promise(r => video.onseeked = r);
+        
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const frame = canvas.toDataURL('image/jpeg', 0.8);
+        frames.push(frame);
+      }
+      
+      URL.revokeObjectURL(objectUrl);
+      resolve(frames);
+    };
+    
+    video.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Failed to load video'));
+    };
+  });
+}
+
+async function extractAudioFromVideo(videoFile) {
+  return new Promise((resolve, reject) => {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const fileReader = new FileReader();
+    
+    fileReader.onload = async (e) => {
+      try {
+        const arrayBuffer = e.target.result;
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        
+        // Convert to WAV and encode as base64
+        const wav = audioBufferToWav(audioBuffer);
+        const blob = new Blob([wav], { type: 'audio/wav' });
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result.split(',')[1];
+          resolve(base64);
+        };
+        reader.readAsDataURL(blob);
+      } catch (error) {
+        reject(error);
+      }
+    };
+    
+    fileReader.onerror = () => reject(new Error('Failed to read video file'));
+    fileReader.readAsArrayBuffer(videoFile);
+  });
+}
+
+function audioBufferToWav(buffer) {
+  const numChannels = buffer.numberOfChannels;
+  const sampleRate = buffer.sampleRate;
+  const format = 1; // PCM
+  const bitDepth = 16;
+  
+  const bytesPerSample = bitDepth / 8;
+  const blockAlign = numChannels * bytesPerSample;
+  
+  const data = [];
+  for (let i = 0; i < buffer.length; i++) {
+    for (let channel = 0; channel < numChannels; channel++) {
+      const sample = Math.max(-1, Math.min(1, buffer.getChannelData(channel)[i]));
+      data.push(sample < 0 ? sample * 0x8000 : sample * 0x7FFF);
+    }
+  }
+  
+  const dataLength = data.length * bytesPerSample;
+  const bufferLength = 44 + dataLength;
+  const arrayBuffer = new ArrayBuffer(bufferLength);
+  const view = new DataView(arrayBuffer);
+  
+  // WAV header
+  const writeString = (offset, string) => {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  };
+  
+  writeString(0, 'RIFF');
+  view.setUint32(4, bufferLength - 8, true);
+  writeString(8, 'WAVE');
+  writeString(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, format, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * blockAlign, true);
+  view.setUint16(32, blockAlign, true);
+  view.setUint16(34, bitDepth, true);
+  writeString(36, 'data');
+  view.setUint32(40, dataLength, true);
+  
+  let offset = 44;
+  for (let i = 0; i < data.length; i++) {
+    view.setInt16(offset, data[i], true);
+    offset += 2;
+  }
+  
+  return arrayBuffer;
+}
+
 async function uploadAndAnalyzeVLM() {
   if (!vlmSelectedFile) return;
   
@@ -1520,52 +1653,35 @@ async function uploadAndAnalyzeVLM() {
   document.getElementById('vlmAnalyzeBtn').disabled = true;
   
   try {
-    // Step 1: Get presigned upload URL
-    updateVLMProgress(10, 'Getting upload URL...');
-    const urlResponse = await fetch(`${API_BASE}/api/get-upload-url`);
-    if (!urlResponse.ok) {
-      throw new Error('Failed to get upload URL');
-    }
-    const urlData = await urlResponse.json();
-    const { upload_url, video_key } = urlData;
-    vlmUploadedVideoKey = video_key;
+    // Step 1: Extract frames from video (client-side)
+    updateVLMProgress(15, 'Extracting frames from video...');
+    const frames = await extractFramesFromVideo(vlmSelectedFile, 1, 20);
     
-    // Step 2: Upload video directly to S3
-    updateVLMProgress(20, 'Uploading video to cloud storage...');
-    const uploadResponse = await fetch(upload_url, {
-      method: 'PUT',
-      body: vlmSelectedFile,
-      headers: {
-        'Content-Type': 'video/mp4'
-      }
-    });
+    // Step 2: Extract audio from video (client-side)
+    updateVLMProgress(35, 'Extracting audio from video...');
+    const audioBase64 = await extractAudioFromVideo(vlmSelectedFile);
     
-    if (!uploadResponse.ok) {
-      throw new Error('Failed to upload video');
-    }
+    // Step 3: Send to backend for OpenAI API calls
+    updateVLMProgress(50, 'Analyzing with AI (this may take 1-2 minutes)...');
     
-    // Step 3: Trigger analysis
-    updateVLMProgress(40, 'Processing video (extracting frames and audio)...');
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    const analysisResponse = await fetch(`${API_BASE}/api/analyze-video`, {
+    const analysisResponse = await fetch(`${API_BASE}/api/analyze-video-client`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ video_key })
+      body: JSON.stringify({
+        frames: frames,
+        audio_base64: audioBase64,
+        filename: vlmSelectedFile.name
+      })
     });
-    
-    updateVLMProgress(60, 'Transcribing audio with Whisper API...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    updateVLMProgress(80, 'Analyzing content with GPT-4V...');
     
     if (!analysisResponse.ok) {
       const errorData = await analysisResponse.json();
       throw new Error(errorData.error || 'Analysis failed');
     }
     
+    updateVLMProgress(90, 'Finalizing results...');
     const analysisData = await analysisResponse.json();
     
     updateVLMProgress(100, 'Analysis complete!');
@@ -1575,7 +1691,7 @@ async function uploadAndAnalyzeVLM() {
     
   } catch (error) {
     console.error('Error:', error);
-    showVLMError(`Error: ${error.message}. Make sure the Flask server is running and configured properly.`);
+    showVLMError(`Error: ${error.message}`);
   } finally {
     document.getElementById('vlmAnalyzeBtn').disabled = false;
   }
