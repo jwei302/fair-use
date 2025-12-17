@@ -3,10 +3,31 @@ from flask_cors import CORS
 import json
 import os
 import pickle
+import boto3
+from datetime import datetime
+import uuid
 
 # Create Flask app
 app = Flask(__name__)
 CORS(app)
+
+# Initialize S3 client for video uploads
+s3_client = None
+try:
+    bucket_name = os.getenv("AWS_S3_BUCKET_NAME")
+    region = os.getenv("AWS_REGION", "us-east-1")
+    if bucket_name:
+        s3_client = boto3.client(
+            's3',
+            region_name=region,
+            aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+        )
+        print(f"✓ S3 client initialized for bucket: {bucket_name}")
+    else:
+        print("⚠ AWS_S3_BUCKET_NAME not set - video features disabled")
+except Exception as e:
+    print(f"⚠ S3 initialization failed: {e}")
 
 # In-memory storage (will reset on each deployment - use external DB for production)
 cases_storage = []
@@ -165,6 +186,52 @@ def train_model_endpoint():
     return jsonify({
         "error": "Training is not available in the serverless environment. Use the local version for training.",
         "success": False
+    }), 501
+
+@app.route("/api/get-upload-url", methods=["GET"])
+def get_upload_url():
+    """Generate a presigned URL for uploading video to S3"""
+    try:
+        if not s3_client:
+            return jsonify({"error": "S3 not configured. Set AWS environment variables."}), 500
+        
+        bucket_name = os.getenv("AWS_S3_BUCKET_NAME")
+        
+        # Generate unique filename
+        timestamp = datetime.now().strftime('%Y%m%d-%H%M%S')
+        unique_id = uuid.uuid4().hex[:8]
+        object_key = f"videos/{timestamp}-{unique_id}.mp4"
+        
+        # Generate presigned URL for PUT operation (5 minutes expiry)
+        upload_url = s3_client.generate_presigned_url(
+            'put_object',
+            Params={
+                'Bucket': bucket_name,
+                'Key': object_key,
+                'ContentType': 'video/mp4'
+            },
+            ExpiresIn=300
+        )
+        
+        return jsonify({
+            "upload_url": upload_url,
+            "video_key": object_key,
+            "bucket": bucket_name
+        }), 200
+        
+    except Exception as e:
+        import traceback
+        return jsonify({
+            "error": f"Failed to generate upload URL: {str(e)}",
+            "traceback": traceback.format_exc()
+        }), 500
+
+@app.route("/api/analyze-video", methods=["POST"])
+def analyze_video():
+    """Analyze video - placeholder for serverless environment"""
+    return jsonify({
+        "error": "Video analysis is not available in the Vercel serverless environment due to computational limitations. Please use the local version for video analysis.",
+        "details": "Video analysis requires FFmpeg, OpenCV, and significant compute resources that exceed Vercel's serverless function limits."
     }), 501
 
 # This is the entry point for Vercel

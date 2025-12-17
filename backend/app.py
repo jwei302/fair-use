@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import sqlite3
 import json
@@ -341,6 +341,23 @@ def analyze_video():
             "error": error_msg,
             "traceback": traceback_str
         }), 500
+
+# =====================================================
+# SERVE STATIC HTML FILES
+# =====================================================
+
+@app.route("/")
+def serve_index():
+    """Serve the main index.html file"""
+    # Go up one directory from backend/ to project root
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_from_directory(parent_dir, 'index.html')
+
+@app.route("/<path:filename>")
+def serve_static(filename):
+    """Serve other static files from project root"""
+    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    return send_from_directory(parent_dir, filename)
 
 if __name__ == "__main__":
     app.run(port=5000, debug=False)

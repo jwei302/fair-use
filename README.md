@@ -7,6 +7,8 @@ This project is a simple website that asks 25 questions to help you think about 
 - A fifth “other considerations” score
 - An optional machine-learning score (using PyTorch)
 
+We also explore as a research question VLMs 
+
 You **do not need programming experience** to run it.
 
 ---
