@@ -1,59 +1,284 @@
-# Fair Use Evaluation Quiz
+# Fair Use Evaluation Tool
 
-This project is a simple website that asks 25 questions to help you think about whether a use of copyrighted material might qualify as **fair use**. It provides:
-
-- An overall manual score (percentage)
-- Scores and explanations for each of the four fair use factors
-- A fifth “other considerations” score
-- An optional machine-learning score (using PyTorch)
-
-We also explore as a research question VLMs 
-
-You **do not need programming experience** to run it.
+**By Eliot Chang, Jeffrey Wei, and Leo Wylonis**  
+**Course:** CPSC 1830 - Law, Technology, and Culture  
+**Live Demo:** [https://fair-use-f373.vercel.app/](https://fair-use-f373.vercel.app/)
 
 ---
 
-## Files in the Project
+## Why We Built This
 
-```text
-fair_use_calculator/
-├── quiz.html              ← Main website (open in browser)
-├── index.html             ← Alternative entry point
+Fair use is one of the most important and confusing parts of copyright law. If you make or post videos online, you have probably asked yourself some version of "Is this fair use or will it get taken down?" The law does not give a simple checklist but rather looks at flexible factors and balances them in context.
+
+This calculator is meant to turn the abstract legal test into something you can explore interactively. Instead of giving a definitive answer of whether something is fair use, the calculator will help you think through how the fair use factors apply to a specific video and where your choices might create more or less risk.
+
+This calculator is focused on videos because that is where a lot of real-world fair use questions show up—such as reaction videos, commentary, parodies, fan edits, and remixes that reuse other people's clips or audio.
+
+---
+
+## Project Overview
+
+This project consists of **three main components**:
+
+### 1. **Interactive Fair Use Calculator**
+An interactive quiz that walks users through the four statutory fair use factors plus a "fifth factor" (good/bad faith). Users answer 25 questions on a 1-9 sliding scale to receive:
+- Individual factor scores (1-9 for each of the five factors)
+- An overall fair use risk score
+- Detailed explanations for each factor
+
+### 2. **Machine Learning Predictor**
+A logistic regression model trained on expert-labeled court cases that predicts fair use outcomes based on the 25-question responses. This allows us to:
+- Identify which questions/factors are most predictive of fair use outcomes
+- Compare human intuition (manual scoring) with data-driven predictions
+- Understand the relative importance of different fair use factors in real cases
+
+### 3. **Vision-Language Model (VLM) Analyzer**
+A research tool that uses GPT-4V (GPT-4 with Vision) and OpenAI Whisper to analyze uploaded videos and assess fair use risk. This explores:
+- **Video Understanding:** Can multimodal AI comprehend video content from frames and audio?
+- **Content Identification:** Can AI identify copyrighted source material?
+- **Legal Reasoning:** Can AI meaningfully apply the four-factor fair use test?
+
+---
+
+## How the Calculator Works
+
+### The 1-9 Sliding Scale Approach
+
+For each factor, you will answer five short questions about your video. Every question uses a sliding scale from **1-9** where:
+- **1** = "this choice is very friendly to fair use"
+- **9** = "this choice looks more like infringement risk"
+
+For example, for the "amount used" factor, a question might ask how much of the original audio you use. Sliding to 1 means "none of the original audio," and sliding to 9 means "the entire original audio track."
+
+We chose a 1-9 scale instead of yes/no answers because **fair use is almost never all or nothing**. Courts talk about uses being more or less transformative, more or less commercial, or using more or less of the original. As Professor Brad Rosen repeatedly put it, "Where do you draw the line?" A slider lets you place your video somewhere on the spectrum instead of forcing a simple yes or no.
+
+### The Five Factors
+
+**Factor 1 - Purpose and Character of Use:**  
+Is your use transformative? Does it add new meaning or message? Is it commercial or educational?
+
+**Factor 2 - Nature of the Copyrighted Work:**  
+Are you using creative fiction or factual/informational content? Published or unpublished?
+
+**Factor 3 - Amount and Substantiality:**  
+How much of the original do you use? Did you take the "heart" of the work?
+
+**Factor 4 - Effect on the Market:**  
+Could your video substitute for the original? Does it harm current or potential markets?
+
+**Factor 5 - Good/Bad Faith (The "Fifth Factor"):**  
+Are you acting fairly and in good faith, or exploitatively?
+
+### Scoring
+
+After answering all 25 questions (5 per factor), the calculator:
+1. **Averages** the five answers for each factor to produce 5 factor scores (1-9)
+2. **Combines** the factor scores into an overall risk score using a weighted average:
+   - Factor 1 (Purpose) and Factor 4 (Market Effect) are weighted more heavily
+   - Factors 2 and 3 carry moderate weight
+   - Factor 5 carries slightly less weight
+
+This weighting reflects how courts often treat transformation and market harm as especially important.
+
+Your resulting score falls into three bands:
+- **1-3:** Leans toward fair use
+- **4-6:** Mixed or uncertain
+- **7-9:** Leans against fair use
+
+---
+
+## Technical Implementation
+
+### 1. Interactive Calculator (Frontend)
+
+**Technologies:** HTML, CSS, JavaScript  
+**Design:** Responsive, modern UI with gradient cards and smooth animations
+
+The quiz interface is built entirely client-side for simplicity and instant feedback. Each of the 25 questions is a range slider (1-9) with explanatory text. After submission, JavaScript calculates:
+- Factor-level scores (average of 5 questions per factor)
+- Weighted overall score
+- Risk classification (Low/Medium/High)
+- Color-coded visual feedback
+
+The calculator also displays detailed explanations for each factor based on the user's responses, helping users understand how their choices map to fair use doctrine.
+
+### 2. Machine Learning Model
+
+**Technologies:** Python, Flask, scikit-learn, NumPy  
+**Model:** Logistic Regression  
+**Data Storage:** SQLite database
+
+#### Why Logistic Regression?
+
+We chose logistic regression for several reasons:
+1. **Interpretability:** We can see exactly which questions contribute most to the prediction
+2. **Simplicity:** Easy to train with limited data (10-20 labeled cases)
+3. **Binary Classification:** Perfect for "fair use" vs. "not fair use" outcomes
+4. **Feature Importance:** Allows us to analyze which factors courts weigh most heavily
+
+#### How It Works
+
+1. **Data Collection:** Users (or instructors) can enter court cases into the "Training Data" tab by:
+   - Naming the case (e.g., "Campbell v. Acuff-Rose Music")
+   - Answering all 25 questions as the court would have
+   - Labeling the outcome (Fair Use = 1, Not Fair Use = 0)
+
+2. **Training:** The Flask backend receives training data via `/api/add-case`, stores it in SQLite, and exposes a `/api/train` endpoint. When triggered:
+   - Fetches all labeled cases from the database
+   - Converts the 25 answers into feature vectors
+   - Trains a logistic regression classifier
+   - Saves the trained model as `logistic_model.pkl`
+
+3. **Prediction:** When a user completes the quiz, the frontend sends their 25 answers to `/predict`. The backend:
+   - Loads the trained model
+   - Predicts the probability of fair use (0-1)
+   - Returns the score to display alongside the manual score
+
+4. **Feature Analysis:** The model's coefficients reveal which questions are most predictive. In our initial training with 10 expert cases, we found:
+   - **Top 5 Questions:** Q15 (Substitute for original), Q13 (Heart of work), Q16 (Replace original), Q20 (Licensing markets), Q18 (Effect on sales/views)
+   - **Pattern:** Most predictive questions come from **Factor 4 (Market Effect)**, suggesting this factor has historically been most decisive
+
+This aligns with legal scholarship noting that market harm is often dispositive in fair use cases.
+
+### 3. Vision-Language Model Analyzer
+
+**Technologies:** Python, Flask, OpenAI API (GPT-4V + Whisper), HTML5 Canvas API, Web Audio API  
+**Deployment:** Vercel serverless functions
+
+#### Motivation
+
+Can multimodal AI systems assess fair use? As VLMs become more sophisticated, we wanted to explore:
+- Whether AI can identify copyrighted source material from video frames
+- Whether AI can apply nuanced legal tests like "transformativeness"
+- Whether AI explanations are grounded in observable evidence or hallucinated
+
+This is a **research question**, not a production tool. We're evaluating the capabilities and limitations of state-of-the-art VLMs in legal reasoning contexts.
+
+#### How It Works
+
+**Step 1: Video Processing (Client-Side)**
+- User uploads an MP4 video (max 200MB recommended)
+- JavaScript extracts frames at 1 fps using HTML5 `<video>` and `<canvas>` APIs (max 30 frames)
+- Frames are encoded as base64 JPEG images (768×768px)
+- The raw video file is also encoded as base64 for audio transcription
+
+**Step 2: Content Identification (Server-Side)**
+- Backend sends 8 representative frames to **GPT-4V (gpt-4o)** with a prompt asking:
+  - What copyrighted work(s) does this video use?
+  - What is the confidence level?
+  - What evidence supports this identification?
+- Model returns structured JSON with identified works
+
+**Step 3: Audio Transcription (Server-Side)**
+- Backend sends the video file to **OpenAI Whisper API** for speech-to-text
+- Whisper supports all common video codecs (MP4, MOV, etc.)
+- Returns full transcript of spoken content
+
+**Step 4: Fair Use Evaluation (Server-Side)**
+- Backend sends 10 frames (high detail), transcript, and identified content to **GPT-4V** with a detailed prompt that:
+  - **Defines** each of the four fair use factors (1-2 sentences each)
+  - Provides **scoring guidance** (0-100 scale, where 0=strong fair use, 100=high infringement risk)
+  - Includes an **in-context learning example** (worked-through scenario with expected output)
+  - Requests **structured JSON output** with scores and explanations for each factor
+
+**Step 5: Results Display**
+- Frontend displays:
+  - Overall fair use risk score (0-100) with risk level (Low/Moderate/High)
+  - Confidence score (reflects completeness of analysis)
+  - Individual factor scores and detailed AI-generated explanations
+  - Identified similar content from Stage 1
+
+#### Design Rationale
+
+- **Two-stage approach:** Separates fact-finding (content ID) from legal analysis, mirroring how human experts reason
+- **In-context learning:** Provides a worked example to calibrate the model's scoring and explanation style
+- **Low temperature (0.3):** Reduces randomness for consistent, deterministic assessments
+- **JSON structure:** Forces organized output and enables reliable parsing
+- **Confidence scoring:** Acknowledges when evidence is incomplete (e.g., no audio, unclear source)
+
+### 4. Backend Architecture
+
+**Technologies:** Flask, Flask-CORS, Vercel (serverless deployment)
+
+The backend serves several purposes:
+1. **API for Quiz ML Model:**
+   - `/predict` - Returns logistic regression prediction
+   - `/api/add-case` - Stores training cases
+   - `/api/train` - Trains the model
+   - `/api/get-cases` - Retrieves all training data
+
+2. **API for VLM Video Analysis:**
+   - `/api/analyze-video-client` - Receives frames and video, calls OpenAI APIs, returns analysis
+
+3. **Static File Serving:**
+   - Serves `index.html` and associated assets
+   - Handles client-side routing for the quiz interface
+
+**Deployment:**  
+The project is deployed on [Vercel](https://vercel.com), which automatically deploys from the main branch. Serverless functions in `/api` handle backend logic, while the frontend is served as static HTML/CSS/JS.
+
+---
+
+## Project Structure
+
+```
+fair-use/
+├── index.html              # Main frontend (all tabs: Quiz, VLM, Admin, Resources, Process)
 ├── backend/
-│   ├── app.py            ← Flask server (run this)
-│   ├── train_model.py    ← Training script (can run manually)
-│   ├── model_def.py      ← Logistic regression model code
-│   ├── training_data.db  ← Database (created automatically)
-│   ├── logistic_model.pkl ← Trained model (created after training)
-│   └── requirements.txt  ← Dependencies
+│   ├── app.py             # Flask server for local development
+│   ├── train_model.py     # Training script (local execution)
+│   ├── model_def.py       # Model definition and prediction logic
+│   ├── training_data.db   # SQLite database (created automatically)
+│   ├── logistic_model.pkl # Trained model (created after training)
+│   └── requirements.txt   # Backend Python dependencies
+├── api/
+│   ├── index.py           # Vercel serverless function (production backend)
+│   ├── requirements.txt   # Vercel Python dependencies
+│   └── logistic_model.pkl # Trained model (copied to Vercel)
+├── vercel.json            # Vercel configuration
+├── .vercelignore          # Files to exclude from Vercel deployment
+└── README.md              # This file
 ```
 
-## Requirements
-- Python 3.8 or later  
-- A web browser (Chrome, Firefox, Safari, Edge, etc.)  
-- Internet is **not** required after install  
-- No hosting, no servers, no paid services  
+**Key Files:**
+- **`index.html`**: Single-page application with tabs for Quiz, VLM Analyzer, Training Data, Admin, Resources, and Process
+- **`backend/app.py`**: Flask backend for local development (runs on `http://127.0.0.1:5000`)
+- **`api/index.py`**: Production backend for Vercel deployment (serverless functions)
+- **`backend/model_def.py`**: Contains logistic regression model code (imported by both Flask and Vercel)
+- **`backend/training_data.db`**: SQLite database storing labeled court cases for training
 
 ---
 
-## Quick Start Guide
+## Running Locally
 
-### 1. Install Dependencies
+### Prerequisites
 
-Make sure you're in the project directory and run:
+- Python 3.8 or later
+- Web browser (Chrome, Firefox, Safari, Edge)
+- (Optional) OpenAI API key for VLM video analysis
+
+### Step 1: Install Dependencies
 
 ```bash
-pip install -r backend/requirements.txt
+cd backend
+pip install -r requirements.txt
 ```
 
-Or manually install:
+Or manually:
 ```bash
-pip install flask flask-cors scikit-learn numpy
+pip install flask flask-cors scikit-learn numpy openai boto3
 ```
 
-### 2. Start the Flask Backend
+### Step 2: Set Up Environment Variables (Optional, for VLM)
 
-Navigate to the backend directory and run:
+Create a `.env` file in the project root:
+
+```bash
+# OpenAI API Key (required for video analysis)
+OPENAI_API_KEY=your-openai-api-key-here
+```
+
+### Step 3: Start the Flask Backend
 
 ```bash
 cd backend
@@ -65,411 +290,92 @@ You should see:
 Running on http://127.0.0.1:5000
 ```
 
-**Keep this terminal window open** while using the data collection system.
+**Keep this terminal window open.**
 
-### 3. Open the Quiz Website
+### Step 4: Open the Website
 
-- Locate `quiz.html` (or `index.html`) in your file explorer (Finder on Mac, File Explorer on Windows)
-- Double-click the file to open it in your default web browser
-- The quiz will load with tabs: Quiz, Training Data, Admin, Resources, Process
+Open your browser and navigate to:
+```
+http://127.0.0.1:5000
+```
+
+The quiz will load with tabs: **Quiz**, **VLM Analyzer**, **Training Data**, **Admin**, **Resources**, **Process**.
 
 ---
 
 ## How to Use the System
 
 ### Taking the Quiz
+
 1. Click the **"Quiz"** tab (default view)
 2. Answer all 25 questions using the sliders (1-9 scale)
 3. Click **"Evaluate Fair Use"**
-4. You'll see both:
+4. View your results:
    - **Manual score** (calculated from your answers)
    - **AI model score** (logistic regression prediction, if model is trained)
+   - Factor-by-factor breakdown with explanations
 
 ### Adding Training Data
+
 1. Click the **"Training Data"** tab
 2. Enter a court case name (e.g., "Campbell v. Acuff-Rose Music, 510 U.S. 569 (1994)")
-3. Answer all 25 questions using the sliders (1-9 scale)
-4. Select whether the case was ruled as **Fair Use** or **Not Fair Use**
+3. Answer all 25 questions as the court would have
+4. Select **Fair Use** or **Not Fair Use**
 5. Click **"Save Case"** - you'll see a success message
 
 ### Training the Model
 
-The system uses **Logistic Regression** (simple, interpretable ML model).
-
-**Option 1: Train from Web Interface (Easiest)**
 1. Add at least 2-4 training cases using the Training Data tab
 2. Go to the **"Admin"** tab
 3. Click **"Train Model"** button
-4. Wait a few seconds - you'll see a success message when done
-5. The model is now ready! Use the **Quiz** tab to get AI predictions
+4. Wait a few seconds - you'll see a success message
+5. The model is now ready! Return to the **Quiz** tab to get AI predictions
 
-**Option 2: Train from Command Line**
-```bash
-cd backend
-python train_model.py
-```
+### Using the VLM Analyzer
 
-**Important:** After training via command line, restart the Flask server to load the new model:
-- Stop the server (Ctrl+C)
-- Run `python app.py` again
+**Note:** This feature requires an OpenAI API key and incurs costs (~$0.20-0.50 per video).
 
-### Viewing/Managing Data (Admin)
-1. Click the **"Admin"** tab
-2. You'll see statistics and a list of all saved cases
-3. Click **"Delete"** next to any case to remove it
-4. Click **"Refresh Data"** to reload the list
-5. Click **"Train Model"** to retrain the model with current data
-6. Click **"Export JSON"** to download all data as a JSON file
-
-### Exporting Data
-- Go to the **Admin** tab
-- Click **"Export JSON"**
-- A file will download named `training_data_YYYY-MM-DD.json`
-- This JSON contains all cases with their answers and labels
+1. Click the **"VLM Analyzer"** tab
+2. Read the research question and methodology
+3. Click **"Choose Video File"** and select an MP4 video (max 200MB)
+4. Click **"Analyze Video"**
+5. Wait 30-60 seconds for processing
+6. View results:
+   - Overall fair use risk score (0-100)
+   - Confidence score
+   - Factor-by-factor analysis with AI-generated explanations
+   - Identified similar content
 
 ---
 
-## Database & Model Storage
+## Deployment
 
-**Database:** The system uses SQLite and creates a file called `training_data.db` in the `backend` directory. This file stores all your training data locally on your computer.
+The project is deployed on **Vercel** at [https://fair-use-f373.vercel.app/](https://fair-use-f373.vercel.app/).
 
-**Trained Model:** After training, a file called `logistic_model.pkl` is created in the `backend` directory. This contains your trained logistic regression model.
+To deploy your own instance:
 
----
+1. Fork this repository
+2. Sign up for [Vercel](https://vercel.com)
+3. Import your forked repository
+4. Add environment variables in Vercel dashboard (if using VLM):
+   - `OPENAI_API_KEY` - Your OpenAI API key
+5. Deploy!
 
-## API Endpoints
-
-The backend provides these endpoints:
-- `POST /predict` - Get AI prediction (requires trained model)
-- `POST /api/add-case` - Save a new case
-- `GET /api/cases` - Get all cases
-- `DELETE /api/cases/<id>` - Delete a case
-- `GET /api/export-cases` - Export all cases as JSON
-- `POST /api/train-model` - Train the logistic regression model
+Vercel will automatically redeploy on every push to the main branch.
 
 ---
 
-## Customizing the Quiz
+## Disclaimer
 
-If you want to customize the quiz:
+**This tool is for educational and research purposes only. It is NOT legal advice.**
 
-1. Open `quiz.html` or `index.html` in a text editor (VS Code, Notepad, TextEdit, etc.).
-2. Look for sections labeled **CONFIGURATION** or the question texts.
+The scores, predictions, and explanations provided by this tool are heuristic assessments based on:
+- Typical patterns in fair use case law
+- Machine learning trained on limited expert-labeled data
+- AI models that use pattern recognition, not legal expertise
 
-You can change:
-- Question wording  
-- Which questions belong to which factor  
-- Weights for each question  
-- Descriptions for low / medium / high scores  
+**Lower risk scores do not guarantee fair use. Higher risk scores do not prove infringement. Only courts can make definitive fair use determinations.**
 
-Save the file and refresh the browser to apply changes.
+If you have a real copyright dispute or legal question, consult a qualified attorney. This tool cannot and does not replace professional legal counsel.
 
----
-
-## Troubleshooting
-
-### Common Issues
-
-- **`pip: command not found`**  
-  → On Mac, try `pip3`. On Windows, make sure Python is added to PATH or reinstall Python from python.org.
-
-- **`ModuleNotFoundError: No module named 'flask'`**  
-  → Run `pip install flask flask-cors` again.
-
-- **Browser says "AI score is not available"**  
-  → Make sure `python backend/app.py` is running in a terminal window.
-
-- **"Could not connect to server"**  
-  → Make sure `python backend/app.py` is running and you see "Running on http://127.0.0.1:5000"
-
-- **Database errors**  
-  → The database file will be created automatically on first use. Make sure you have write permissions in the backend directory.
-
-- **CORS errors**  
-  → Make sure `flask-cors` is installed: `pip install flask-cors`
-
-### PyTorch DLL Error on Windows
-
-If you see: `OSError: [WinError 1114] A dynamic link library (DLL) initialization routine failed`
-
-**Good News:** The data collection system will still work! The backend will start and you can collect training data. Only the ML prediction feature won't work until PyTorch is fixed.
-
-#### Quick Fixes (try in order):
-
-**Option 1: Reinstall PyTorch (Recommended)**
-```bash
-pip uninstall torch
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
-
-**Option 2: Install CPU-only version**
-```bash
-pip uninstall torch
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
-```
-
-**Option 3: Install Visual C++ Redistributables**  
-Download and install from Microsoft:  
-https://aka.ms/vs/17/release/vc_redist.x64.exe
-
-**Option 4: Try a different PyTorch version**
-```bash
-pip uninstall torch
-pip install torch==2.0.1
-```
-
-**Option 5: Deactivate and recreate virtual environment**
-```bash
-deactivate
-rmdir /s .venv
-python -m venv .venv
-.venv\Scripts\activate
-pip install flask flask-cors torch
-```
-
-#### Verify It Works
-After trying a fix, run:
-```bash
-python backend/app.py
-```
-
-You should see:
-```
-✓ ML model loaded successfully
-Running on http://127.0.0.1:5000
-```
-
-Or if model loading fails but data collection works:
-```
-Warning: Could not load ML model (...). Data collection features will still work.
-Running on http://127.0.0.1:5000
-```
-
-Both are fine! The second just means ML predictions won't work, but you can still collect training data.
-
----
-
----
-
-## Video Analysis Feature (Research Tool)
-
-### Overview
-
-This project now includes a **Video Fair-Use Risk Analysis** tool that uses state-of-the-art AI to analyze video content and assess fair-use risk.
-
-**Research Question:** How well can vision-language models (VLMs) assess fair-use risk for video content?
-
-This tool evaluates:
-- **Video Understanding:** Can GPT-4V analyze frames and audio to understand content?
-- **Content Identification:** Can it identify similar/source copyrighted material?
-- **Legal Reasoning:** Can it apply the four statutory fair-use factors?
-
-### Setup Requirements
-
-#### 1. OpenAI API Key (Required)
-
-Get an API key from [OpenAI Platform](https://platform.openai.com/api-keys)
-
-**Cost Estimates:**
-- GPT-4V (gpt-4o): ~$0.01-0.03 per frame
-- Whisper: ~$0.006 per minute of audio
-- **Total per video:** ~$0.20-0.50 for a 2-minute video with 30 frames
-
-#### 2. AWS S3 Setup (Required)
-
-**Create an S3 Bucket:**
-1. Go to AWS Console → S3 → Create Bucket
-2. Choose a name (e.g., `fair-use-videos`)
-3. Select region (e.g., `us-east-1`)
-4. Keep "Block all public access" **enabled** (we use presigned URLs)
-
-**Configure CORS:**
-Go to bucket → Permissions → CORS, add:
-```json
-[
-    {
-        "AllowedHeaders": ["*"],
-        "AllowedMethods": ["PUT", "POST", "GET"],
-        "AllowedOrigins": ["*"],
-        "ExposeHeaders": ["ETag"],
-        "MaxAgeSeconds": 3000
-    }
-]
-```
-
-**Create IAM User:**
-1. Go to IAM → Users → Create User
-2. Attach policy: Create custom policy with:
-```json
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Effect": "Allow",
-            "Action": [
-                "s3:PutObject",
-                "s3:GetObject",
-                "s3:DeleteObject"
-            ],
-            "Resource": "arn:aws:s3:::YOUR-BUCKET-NAME/*"
-        }
-    ]
-}
-```
-3. Create access keys and save them securely
-
-#### 3. FFmpeg (Required)
-
-**Mac:**
-```bash
-brew install ffmpeg
-```
-
-**Linux (Ubuntu/Debian):**
-```bash
-sudo apt update
-sudo apt install ffmpeg
-```
-
-**Windows:**
-Download from [ffmpeg.org](https://ffmpeg.org/download.html)
-
-#### 4. Environment Variables
-
-Create `backend/.env` file:
-```bash
-# OpenAI
-OPENAI_API_KEY=sk-your-key-here
-
-# AWS S3
-AWS_ACCESS_KEY_ID=your-access-key-id
-AWS_SECRET_ACCESS_KEY=your-secret-access-key
-AWS_S3_BUCKET_NAME=your-bucket-name
-AWS_REGION=us-east-1
-```
-
-**Security Note:** Never commit `.env` to git! It's already in `.gitignore`.
-
-### Installation
-
-Install all dependencies including video analysis:
-```bash
-cd backend
-pip install -r requirements.txt
-```
-
-This installs:
-- `openai` - OpenAI API client
-- `boto3` - AWS SDK for S3
-- `opencv-python-headless` - Video frame extraction
-- `ffmpeg-python` - Audio extraction
-
-### Usage
-
-1. Start the Flask backend:
-```bash
-cd backend
-python app.py
-```
-
-2. Open `video-analysis.html` in your browser, or navigate via the main site navbar
-
-3. Upload an MP4 video (max 200MB recommended)
-
-4. Wait for processing (typically 30-90 seconds):
-   - Video uploads to S3
-   - Frames extracted (1-2 FPS, max 30 frames)
-   - Audio transcribed with Whisper
-   - Content analyzed with GPT-4V
-   - Fair-use evaluation generated
-
-5. Review results:
-   - Overall risk score (0-100)
-   - Similar content identified
-   - Four-factor analysis with explanations
-   - Confidence/completeness score
-
-### How It Works
-
-1. **Upload:** Video uploads directly to S3 via presigned URL (bypasses Flask/Vercel 4.5MB limit)
-2. **Processing:** Backend downloads video, extracts frames (1-2 FPS) and audio
-3. **Transcription:** Whisper API transcribes audio to text
-4. **Similarity Detection:** GPT-4V analyzes frames to identify source material
-5. **Fair-Use Evaluation:** GPT-4V evaluates all four statutory factors:
-   - Factor 1: Purpose & Character of Use
-   - Factor 2: Nature of Copyrighted Work
-   - Factor 3: Amount & Substantiality
-   - Factor 4: Effect on Market
-6. **Results:** Comprehensive report with risk scores and explanations
-
-### API Endpoints (Video Analysis)
-
-- `GET /api/get-upload-url` - Get presigned S3 URL for video upload
-- `POST /api/analyze-video` - Analyze uploaded video
-  - Body: `{"video_key": "videos/..."}`
-  - Returns: Full analysis with scores and explanations
-
-### Cost Management
-
-**Typical costs per video:**
-- Whisper (2 min audio): ~$0.012
-- GPT-4V (30 frames): ~$0.30-0.60
-- S3 storage: <$0.01/GB/month
-- **Total:** ~$0.35-0.65 per video
-
-**Cost optimization tips:**
-- Limit to first 2 minutes of long videos
-- Sample fewer frames (10-20 instead of 30)
-- Use "low detail" mode for some frames
-- Set S3 lifecycle policy to auto-delete after 1 day
-
-### Limitations & Important Notes
-
-**⚠️ CRITICAL: This is a RESEARCH TOOL, not legal advice**
-
-- Scores are **heuristic assessments** only
-- Lower risk ≠ fair use; higher risk ≠ infringement
-- Only a court can make binding fair-use determinations
-- Do NOT rely on this for actual copyright decisions
-
-**Technical Limitations:**
-- Vercel timeout: 60s (Pro tier) or 10s (Hobby tier)
-- Longer videos may require separate backend (not Vercel Functions)
-- Maximum video size: ~500MB (constrained by `/tmp` space)
-- Frame analysis limited to visual content (no OCR/detailed text reading)
-
-### Troubleshooting Video Analysis
-
-**"Cloud storage not configured"**
-→ Check that all AWS environment variables are set in `.env`
-
-**"FFmpeg not found"**
-→ Install ffmpeg: `brew install ffmpeg` (Mac) or `apt install ffmpeg` (Linux)
-
-**"Failed to download video"**
-→ Check S3 bucket permissions and IAM user access keys
-
-**"OpenAI API error"**
-→ Verify `OPENAI_API_KEY` is correct and has credits
-
-**Processing times out**
-→ Try shorter video or fewer frames. Consider running Flask on dedicated server instead of Vercel.
-
-**High API costs**
-→ Reduce `max_frames` in `video_processor.py` or `fps_sample_rate`
-
----
-
-## Important Note
-
-This tool is for **education and discussion only**.  
-It is **not legal advice**, and it does **not** tell you definitively whether a use is or is not fair use.  
-Only a court can do that.
-
-**For the video analysis feature specifically:**  
-The AI's assessment is based on pattern recognition and training data, not legal expertise. Treat all scores as experimental research outputs, not legal guidance.
-
-
-
-
-
+For the VLM video analysis feature specifically: The AI's assessment is based on observable video content and pattern recognition, not legal expertise. Treat all scores as experimental research outputs exploring the capabilities of multimodal AI, not as guidance for actual copyright decisions.

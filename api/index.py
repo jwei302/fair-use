@@ -349,14 +349,75 @@ Respond in JSON format:
         
         # Step 3: Evaluate fair use
         fair_use_prompt = f"""You are a fair-use assessment tool. Given video frames, transcript, and identified source material,
-evaluate fair-use risk across four factors.
+evaluate fair-use risk across the four statutory fair use factors. You are producing a heuristic risk assessment for educational purposes,
+not legal advice. Base your reasoning on the supplied evidence only; if critical context is missing, reflect this in a lower confidence score
+and state key assumptions.
+
+Define the four factors (1–2 sentences each):
+1) Purpose and Character of the Use: Assess why and how the material is used (e.g., commentary, criticism, news reporting, teaching, parody, research) and whether the use is transformative (adds new meaning, message, or purpose) versus a substitute. Also consider whether the use is commercial or nonprofit/educational.
+2) Nature of the Copyrighted Work: Consider what kind of original work is used and how “creative” or “published” it is. Use of highly creative, fictional, or unpublished works generally increases infringement risk relative to factual, informational, or published works.
+3) Amount and Substantiality: Evaluate how much of the copyrighted work is used (duration/percentage) and whether the “heart” or most memorable/key parts are taken. Using only what is reasonably necessary for the stated purpose lowers risk; extensive or continuous copying raises risk.
+4) Effect on the Market: Assess whether the use could act as a market substitute for the original or harm licensing/derivative markets (including plausible markets the rights holder exploits). If viewers could consume the original via the new video instead of the original (or its licensed clips), risk is higher.
+
+Scoring guidance (0–100, where 0 = strong fair use indications, 100 = high infringement risk):
+- 0–33: strong fair-use signals; limited copying; clear transformative purpose; minimal market harm.
+- 34–66: mixed signals; some transformative elements but nontrivial copying or unclear market impact.
+- 67–100: weak fair-use signals; mostly republishing; extensive copying/“heart” taken; likely substitution or market harm.
+
+Output requirements:
+- Respond ONLY with valid JSON matching the schema below (no markdown, no extra keys).
+- “overall_risk_score” should be consistent with factor scores (not necessarily a simple average).
+- “risk_level” must be exactly one of: "Low Risk (0-33)", "Moderate Risk (34-66)", "High Risk (67-100)".
+- “confidence_score” reflects evidentiary completeness (lower if transcript is missing, source unclear, frames insufficient, etc.).
+
+IN-CONTEXT EXAMPLE (for calibration only; do not reuse facts unless supported by the provided input):
+Input (abridged):
+Transcript: "In this video essay, I critique the film's portrayal of history. Here is a 6-second clip to illustrate the scene I'm discussing..."
+
+Similar Content Found:
+{
+  "summary": "The frames resemble excerpts from a professionally produced feature film; multiple frames appear to be direct clips with original cinematography and color grading.",
+  "identified_works": [
+    {
+      "title": "Feature film (exact title not fully confirmed from frames alone)",
+      "creator": "Unknown/Not confidently determinable from frames alone",
+      "confidence": "medium",
+      "evidence": "Several frames show consistent character designs, cinematic lighting, and continuity across shots, suggesting direct reuse of scenes rather than recreated footage."
+    }
+  ],
+  "unidentified": false
+}
+
+Expected JSON output:
+{{
+  "overall_risk_score": 28,
+  "risk_level": "Low Risk (0-33)",
+  "confidence_score": 78,
+  "factors": {{
+    "purpose_and_character": {{
+      "score": 20,
+      "explanation": "The use appears to be criticism/commentary with added analysis, and the clips serve an illustrative purpose rather than republishing the work. The presentation is transformative and not simply a substitute for the original."
+    }},
+    "nature_of_work": {{
+      "score": 45,
+      "explanation": "The source is a creative audiovisual work, which generally weighs against fair use, but this factor is often less decisive when the purpose is commentary."
+    }},
+    "amount_and_substantiality": {{
+      "score": 25,
+      "explanation": "Only brief, non-continuous clips are used and seem reasonably necessary to support specific points. There is no indication that the video's value comes from extensive or uninterrupted copying."
+    }},
+    "market_effect": {{
+      "score": 22,
+      "explanation": "Because the video uses short excerpts with commentary, it is unlikely to substitute for viewing the film or licensed full-scene distribution. Any market harm appears minimal based on the limited overlap described."
+    }}
+  }}
+}}
+
+Now evaluate the following inputs.
 
 Transcript: {transcript[:2000] if transcript else "[No transcript]"}
 
 Similar Content Found: {json.dumps(similar_content)}
-
-For each factor, provide a score from 0-100 (0=strong fair use, 100=high infringement risk) and explanation.
-
 Respond ONLY with valid JSON:
 {{
   "overall_risk_score": <0-100>,
@@ -369,6 +430,7 @@ Respond ONLY with valid JSON:
     "market_effect": {{"score": <0-100>, "explanation": "..."}}
   }}
 }}"""
+
         
         # Build message content array for fair use analysis
         fair_use_content_array = [{"type": "text", "text": fair_use_prompt}]
