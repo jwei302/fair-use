@@ -367,7 +367,11 @@ Respond in JSON format:
                 }
         
         # Step 3: Evaluate fair use
-        fair_use_prompt = f"""You are a fair-use assessment tool. Given video frames, transcript, and identified source material,
+        # Build prompt components separately to avoid f-string formatting issues
+        transcript_text = transcript[:2000] if transcript else "[No transcript]"
+        similar_content_text = json.dumps(similar_content)
+        
+        fair_use_prompt = """You are a fair-use assessment tool. Given video frames, transcript, and identified source material,
 evaluate fair-use risk across the four statutory fair use factors. You are producing a heuristic risk assessment for educational purposes,
 not legal advice. Base your reasoning on the supplied evidence only; if critical context is missing, reflect this in a lower confidence score
 and state key assumptions.
@@ -408,47 +412,48 @@ Similar Content Found:
 }
 
 Expected JSON output:
-{{
+{
   "overall_risk_score": 28,
   "risk_level": "Low Risk (0-33)",
   "confidence_score": 78,
-  "factors": {{
-    "purpose_and_character": {{
+  "factors": {
+    "purpose_and_character": {
       "score": 20,
       "explanation": "The use appears to be criticism/commentary with added analysis, and the clips serve an illustrative purpose rather than republishing the work. The presentation is transformative and not simply a substitute for the original."
-    }},
-    "nature_of_work": {{
+    },
+    "nature_of_work": {
       "score": 45,
       "explanation": "The source is a creative audiovisual work, which generally weighs against fair use, but this factor is often less decisive when the purpose is commentary."
-    }},
-    "amount_and_substantiality": {{
+    },
+    "amount_and_substantiality": {
       "score": 25,
       "explanation": "Only brief, non-continuous clips are used and seem reasonably necessary to support specific points. There is no indication that the video's value comes from extensive or uninterrupted copying."
-    }},
-    "market_effect": {{
+    },
+    "market_effect": {
       "score": 22,
       "explanation": "Because the video uses short excerpts with commentary, it is unlikely to substitute for viewing the film or licensed full-scene distribution. Any market harm appears minimal based on the limited overlap described."
-    }}
-  }}
-}}
+    }
+  }
+}
 
 Now evaluate the following inputs.
 
-Transcript: {transcript[:2000] if transcript else "[No transcript]"}
+Transcript: """ + transcript_text + """
 
-Similar Content Found: {json.dumps(similar_content)}
+Similar Content Found: """ + similar_content_text + """
+
 Respond ONLY with valid JSON:
-{{
+{
   "overall_risk_score": <0-100>,
   "risk_level": "Low Risk (0-33)" or "Moderate Risk (34-66)" or "High Risk (67-100)",
   "confidence_score": <0-100>,
-  "factors": {{
-    "purpose_and_character": {{"score": <0-100>, "explanation": "..."}},
-    "nature_of_work": {{"score": <0-100>, "explanation": "..."}},
-    "amount_and_substantiality": {{"score": <0-100>, "explanation": "..."}},
-    "market_effect": {{"score": <0-100>, "explanation": "..."}}
-  }}
-}}"""
+  "factors": {
+    "purpose_and_character": {"score": <0-100>, "explanation": "..."},
+    "nature_of_work": {"score": <0-100>, "explanation": "..."},
+    "amount_and_substantiality": {"score": <0-100>, "explanation": "..."},
+    "market_effect": {"score": <0-100>, "explanation": "..."}
+  }
+}"""
 
         
         # Build message content array for fair use analysis
