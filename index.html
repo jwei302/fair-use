@@ -876,42 +876,43 @@ const scaleDescriptions = {
 };
 
 // Weights for each question (index 1..25)
+// Based on legal importance in fair use case law
 const weights = Array(26).fill(1);
 
-// Factor 1 (Purpose & Character)
-weights[1] = 3;
-weights[2] = 3;
-weights[3] = 3;
-weights[4] = 2;
-weights[5] = 2;
+// Factor 1 (Purpose & Character) - Courts consider this VERY important
+weights[1] = 5;  // Transformative nature - CRITICAL
+weights[2] = 4;  // Comment/critique/parody - Very important
+weights[3] = 3;  // Commercial vs noncommercial - Important
+weights[4] = 3;  // Creative effort added - Important
+weights[5] = 2;  // Intent - Moderately important
 
-// Factor 2 (Nature of the Work)
-weights[6] = 2;
-weights[7] = 1;
-weights[8] = 1;
-weights[9] = 1;
-weights[10] = 2;
+// Factor 2 (Nature of the Work) - Courts consider this moderately important
+weights[6] = 2;  // Creativity of original - Moderately important
+weights[7] = 1;  // Published status - Less important
+weights[8] = 1;  // Finished work - Less important
+weights[9] = 2;  // Creative vs factual parts - Moderately important
+weights[10] = 2; // Type of work - Moderately important
 
-// Factor 3 (Amount & Substantiality)
-weights[11] = 2;
-weights[12] = 2;
-weights[13] = 2;
-weights[14] = 2;
-weights[15] = 1;
+// Factor 3 (Amount & Substantiality) - Courts consider this important
+weights[11] = 3; // Amount of video used - Important
+weights[12] = 3; // Amount of audio used - Important
+weights[13] = 4; // Heart of work - Very important
+weights[14] = 2; // Continuous vs broken - Moderately important
+weights[15] = 4; // Substitute for original - Very important
 
-// Factor 4 (Market Effect)
-weights[16] = 3;
-weights[17] = 3;
-weights[18] = 2;
-weights[19] = 3;
-weights[20] = 3;
+// Factor 4 (Market Effect) - Courts consider this VERY important
+weights[16] = 5; // Replace original - CRITICAL
+weights[17] = 3; // Same audience - Important
+weights[18] = 5; // Effect on sales/views - CRITICAL
+weights[19] = 3; // Same market space - Important
+weights[20] = 5; // Licensing markets - CRITICAL
 
-// Factor 5 (Other considerations)
-weights[21] = 1;
-weights[22] = 1;
-weights[23] = 2;
-weights[24] = 2;
-weights[25] = 1;
+// Factor 5 (Other considerations) - Courts consider this less important officially
+weights[21] = 1; // Tone - Less important
+weights[22] = 2; // Judge/jury perception - Moderately important
+weights[23] = 2; // Honesty about relationship - Moderately important
+weights[24] = 1; // Disclaimers - Less important
+weights[25] = 2; // Creator perception - Moderately important
 
 // Factor groupings (you can change which questions belong to which factor)
 const factorAssignments = {
@@ -1030,14 +1031,18 @@ async function calculateScore() {
   }
 
   // manual overall score (0–100)
+  // Lower values (1) = more fair use friendly, Higher values (9) = more infringement risk
+  // We invert so that lower raw scores give higher fair use percentages
   let weightedSum = 0;
   let totalWeight = 0;
   for (let i = 1; i <= 25; i++) {
-    weightedSum += normalized[i-1] * weights[i];
+    // Use original values directly (1 = fair use friendly, 9 = infringement risk)
+    weightedSum += original[i-1] * weights[i];
     totalWeight += weights[i];
   }
-  const minPossible = 1 * totalWeight;
-  const maxPossible = 9 * totalWeight;
+  const minPossible = 1 * totalWeight;  // Best case: all 1s
+  const maxPossible = 9 * totalWeight;  // Worst case: all 9s
+  // Invert: lower weightedSum = higher fair use percentage
   const manualPercent = 100 - ((weightedSum - minPossible) / (maxPossible - minPossible)) * 100;
 
   // call ML backend
@@ -1055,17 +1060,20 @@ async function calculateScore() {
   }
 
   // per-factor scores
+  // Lower values (1) = more fair use friendly, Higher values (9) = more infringement risk
   const factorScores = {};
   for (const key in factorAssignments) {
     const qList = factorAssignments[key];
     let wSum = 0, wTot = 0;
     for (const q of qList) {
-      wSum += normalized[q-1] * weights[q];
+      // Use original values directly (1 = fair use friendly, 9 = infringement risk)
+      wSum += original[q-1] * weights[q];
       wTot += weights[q];
     }
-    const fMin = 1 * wTot;
-    const fMax = 9 * wTot;
-    factorScores[key] = 100 -((wSum - fMin) / (fMax - fMin)) * 100;
+    const fMin = 1 * wTot;  // Best case: all 1s
+    const fMax = 9 * wTot;  // Worst case: all 9s
+    // Invert: lower wSum = higher fair use percentage
+    factorScores[key] = 100 - ((wSum - fMin) / (fMax - fMin)) * 100;
   }
 
   // overall description
