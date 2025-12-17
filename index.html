@@ -602,9 +602,9 @@
   <a class="nav-item" onclick="showTab('quiz')">Quiz</a>
   <a class="nav-item" onclick="showTab('training')">Training Data</a>
   <a class="nav-item" onclick="showTab('admin')">Admin</a>
+  <a class="nav-item" onclick="showTab('vlm')">VLM Analyzer</a>
   <a class="nav-item" onclick="showTab('resources')">Resources</a>
   <a class="nav-item" onclick="showTab('process')">Process</a>
-  <a class="nav-item" href="video-analysis.html">Video Analysis (Research)</a>
 </div>
 
 
@@ -650,6 +650,64 @@
   </ul>
 </div>
 
+
+<!-- VLM ANALYZER SECTION -->
+<div id="vlm" class="section">
+  <h1>Video Fair-Use Risk Analysis</h1>
+  <div class="subtitle">
+    A research tool exploring how well vision-language models can assess fair-use risk in video content
+  </div>
+
+  <!-- Research Question -->
+  <div class="intro-card">
+    <div class="badge" style="background:linear-gradient(135deg, #e3ebff 0%, #d4e4ff 100%);">Research Question</div>
+    <h2>How well can VLMs assess fair-use risk for video content?</h2>
+    <p>
+      This tool evaluates two key capabilities of state-of-the-art vision-language models (VLMs):
+    </p>
+    <ul>
+      <li><strong>Video Understanding:</strong> Can the model analyze video frames and audio to understand content, context, and purpose?</li>
+      <li><strong>Content Identification:</strong> Can the model identify similar or source content online to recognize copyrighted material?</li>
+      <li><strong>Legal Reasoning:</strong> Can the model apply the four statutory fair-use factors to provide meaningful risk assessment?</li>
+    </ul>
+    <p>
+      <strong>Important:</strong> This is a research tool, not legal advice. The scores are heuristic assessments based on AI analysis and should not be relied upon for actual copyright decisions.
+    </p>
+  </div>
+
+  <!-- Upload Section -->
+  <div style="background:var(--card-bg); padding:40px; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.08); margin-bottom:28px; border:2px dashed #d8dee9; text-align:center; transition:all 0.3s;">
+    <h2 style="margin-top:0;">Upload Video for Analysis</h2>
+    <p style="color:#4a5568;">Upload an MP4 video (max 200MB recommended)</p>
+    
+    <div style="position:relative; display:inline-block;">
+      <input type="file" id="vlmVideoFile" accept="video/mp4" onchange="handleVLMFileSelect(event)" style="display:none;">
+      <label for="vlmVideoFile" style="padding:16px 56px; font-size:17px; font-weight:600; border:none; border-radius:12px; background:linear-gradient(135deg, #4A83F7 0%, #5a93ff 100%); color:white; cursor:pointer; display:inline-block; transition:all 0.3s ease; box-shadow:0 4px 16px rgba(74,131,247,0.3);">Choose Video File</label>
+    </div>
+    
+    <div id="vlmFileInfo" style="margin-top:16px; font-size:14px; color:#4a5568;"></div>
+    
+    <button id="vlmAnalyzeBtn" onclick="uploadAndAnalyzeVLM()" disabled style="padding:16px 56px; font-size:17px; font-weight:600; border:none; border-radius:12px; background:linear-gradient(135deg, #6BCB77 0%, #7dd87d 100%); color:white; cursor:pointer; margin-top:20px; transition:all 0.3s ease; box-shadow:0 4px 16px rgba(107,203,119,0.3);">
+      Analyze Video
+    </button>
+  </div>
+
+  <!-- Progress -->
+  <div id="vlmProgressContainer" style="display:none; background:var(--card-bg); padding:32px; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.08); margin-bottom:28px;">
+    <h3 style="margin-top:0;">Processing Video...</h3>
+    <div style="width:100%; height:24px; background:#e2e8f0; border-radius:999px; overflow:hidden; margin:16px 0; box-shadow:inset 0 2px 4px rgba(0,0,0,0.1);">
+      <div id="vlmProgressFill" style="height:100%; background:linear-gradient(90deg, #4A83F7, #6BCB77); transition:width 0.3s ease; border-radius:999px; width:0%;"></div>
+    </div>
+    <div id="vlmProgressText" style="text-align:center; font-weight:600; color:#4a5568; margin-top:8px;">Initializing...</div>
+  </div>
+
+  <!-- Error Message -->
+  <div id="vlmErrorMessage" style="display:none; background:#f8d7da; border-left:4px solid #ff5757; padding:20px; border-radius:8px; color:#721c24; margin:24px 0;"></div>
+
+  <!-- Results -->
+  <div id="vlmResults" style="display:none;"></div>
+
+</div>
 
 <!-- PROCESS SECTION -->
 <div id="process" class="section">
@@ -1401,6 +1459,238 @@ async function exportTrainingData() {
   } catch (error) {
     alert('Error: Could not connect to server.');
   }
+}
+
+// =====================================================
+// VLM ANALYZER FUNCTIONS
+// =====================================================
+
+let vlmSelectedFile = null;
+let vlmUploadedVideoKey = null;
+
+function handleVLMFileSelect(event) {
+  vlmSelectedFile = event.target.files[0];
+  const analyzeBtn = document.getElementById('vlmAnalyzeBtn');
+  const fileInfo = document.getElementById('vlmFileInfo');
+  
+  if (vlmSelectedFile) {
+    const sizeMB = (vlmSelectedFile.size / (1024 * 1024)).toFixed(2);
+    fileInfo.innerHTML = `
+      <strong>${vlmSelectedFile.name}</strong><br>
+      Size: ${sizeMB} MB
+      ${sizeMB > 200 ? '<br><span style="color:#ff5757;">⚠ File is large, processing may take longer</span>' : ''}
+    `;
+    analyzeBtn.disabled = false;
+    analyzeBtn.style.background = 'linear-gradient(135deg, #6BCB77 0%, #7dd87d 100%)';
+    analyzeBtn.style.cursor = 'pointer';
+  } else {
+    fileInfo.innerHTML = '';
+    analyzeBtn.disabled = true;
+    analyzeBtn.style.background = '#ccc';
+    analyzeBtn.style.cursor = 'not-allowed';
+  }
+}
+
+function updateVLMProgress(percent, message) {
+  const progressContainer = document.getElementById('vlmProgressContainer');
+  const progressFill = document.getElementById('vlmProgressFill');
+  const progressText = document.getElementById('vlmProgressText');
+  
+  progressContainer.style.display = 'block';
+  progressFill.style.width = percent + '%';
+  progressText.textContent = message;
+}
+
+function showVLMError(message) {
+  const errorDiv = document.getElementById('vlmErrorMessage');
+  errorDiv.textContent = message;
+  errorDiv.style.display = 'block';
+  document.getElementById('vlmProgressContainer').style.display = 'none';
+}
+
+function hideVLMError() {
+  document.getElementById('vlmErrorMessage').style.display = 'none';
+}
+
+async function uploadAndAnalyzeVLM() {
+  if (!vlmSelectedFile) return;
+  
+  hideVLMError();
+  document.getElementById('vlmResults').style.display = 'none';
+  document.getElementById('vlmAnalyzeBtn').disabled = true;
+  
+  try {
+    // Step 1: Get presigned upload URL
+    updateVLMProgress(10, 'Getting upload URL...');
+    const urlResponse = await fetch(`${API_BASE}/api/get-upload-url`);
+    if (!urlResponse.ok) {
+      throw new Error('Failed to get upload URL');
+    }
+    const urlData = await urlResponse.json();
+    const { upload_url, video_key } = urlData;
+    vlmUploadedVideoKey = video_key;
+    
+    // Step 2: Upload video directly to S3
+    updateVLMProgress(20, 'Uploading video to cloud storage...');
+    const uploadResponse = await fetch(upload_url, {
+      method: 'PUT',
+      body: vlmSelectedFile,
+      headers: {
+        'Content-Type': 'video/mp4'
+      }
+    });
+    
+    if (!uploadResponse.ok) {
+      throw new Error('Failed to upload video');
+    }
+    
+    // Step 3: Trigger analysis
+    updateVLMProgress(40, 'Processing video (extracting frames and audio)...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const analysisResponse = await fetch(`${API_BASE}/api/analyze-video`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ video_key })
+    });
+    
+    updateVLMProgress(60, 'Transcribing audio with Whisper API...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    updateVLMProgress(80, 'Analyzing content with GPT-4V...');
+    
+    if (!analysisResponse.ok) {
+      const errorData = await analysisResponse.json();
+      throw new Error(errorData.error || 'Analysis failed');
+    }
+    
+    const analysisData = await analysisResponse.json();
+    
+    updateVLMProgress(100, 'Analysis complete!');
+    
+    // Display results
+    displayVLMResults(analysisData);
+    
+  } catch (error) {
+    console.error('Error:', error);
+    showVLMError(`Error: ${error.message}. Make sure the Flask server is running and configured properly.`);
+  } finally {
+    document.getElementById('vlmAnalyzeBtn').disabled = false;
+  }
+}
+
+function displayVLMResults(data) {
+  const resultsDiv = document.getElementById('vlmResults');
+  const analysis = data.analysis;
+  const fairUse = analysis.fair_use_evaluation;
+  const similar = analysis.similar_content;
+  
+  const riskScore = fairUse.overall_risk_score;
+  const riskLevel = fairUse.risk_level;
+  const confidence = fairUse.confidence_score;
+  
+  let html = `
+    <div class="results-card">
+      <div class="results-title">Analysis Results</div>
+      
+      <div style="text-align:center; padding:32px; background:linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%); border-radius:16px; margin:24px 0; border:2px solid #e8eef5;">
+        <div style="font-size:72px; font-weight:700; background:linear-gradient(135deg, #4A83F7 0%, #6BCB77 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; line-height:1;">${riskScore}/100</div>
+        <div style="font-size:24px; font-weight:600; margin-top:12px; color:#2d3748;">${riskLevel}</div>
+        <div style="font-size:16px; color:#4a5568; margin-top:8px;">Analysis Completeness: ${confidence}/100</div>
+      </div>
+      
+      <div style="background:#fff9e6; border-left:4px solid #ffcb57; padding:16px 20px; border-radius:8px; margin:24px 0; font-size:14px; line-height:1.6; color:#856404;">
+        <strong>⚠️ Important Disclaimer:</strong><br>
+        This score reflects a heuristic assessment based on observed content and stated assumptions. It is not a legal determination.
+        <strong>Lower risk ≠ fair use; higher risk ≠ infringement.</strong> This is a research tool, not legal advice.
+        Only a court can make a binding fair-use determination.
+      </div>
+  `;
+  
+  // Similar content identified
+  if (similar && similar.summary) {
+    html += `
+      <div style="background:linear-gradient(135deg, #f8f9fb 0%, #ffffff 100%); padding:24px; border-radius:16px; margin:24px 0; border:1px solid #e8eef5;">
+        <h3 style="margin-top:0; font-size:20px; color:#1a1a1a;">📹 Similar Content Identified</h3>
+        <p>${similar.summary}</p>
+    `;
+    
+    if (similar.identified_works && similar.identified_works.length > 0) {
+      html += '<ul>';
+      similar.identified_works.forEach(work => {
+        html += `<li><strong>${work.title || 'Unknown'}</strong> by ${work.creator || 'Unknown'} 
+                 (Confidence: ${work.confidence || 'unknown'})<br>
+                 <em>${work.evidence || ''}</em></li>`;
+      });
+      html += '</ul>';
+    }
+    
+    html += '</div>';
+  }
+  
+  // Four factors
+  const factors = fairUse.factors;
+  
+  html += '<h2 style="margin-top:32px; color:#1a1a1a;">Four-Factor Analysis</h2>';
+  
+  html += renderVLMFactor(
+    'Factor 1: Purpose and Character of Use',
+    factors.purpose_and_character.score,
+    factors.purpose_and_character.explanation
+  );
+  
+  html += renderVLMFactor(
+    'Factor 2: Nature of Copyrighted Work',
+    factors.nature_of_work.score,
+    factors.nature_of_work.explanation
+  );
+  
+  html += renderVLMFactor(
+    'Factor 3: Amount and Substantiality',
+    factors.amount_and_substantiality.score,
+    factors.amount_and_substantiality.explanation
+  );
+  
+  html += renderVLMFactor(
+    'Factor 4: Effect on the Market',
+    factors.market_effect.score,
+    factors.market_effect.explanation
+  );
+  
+  html += '</div>';
+  
+  resultsDiv.innerHTML = html;
+  resultsDiv.style.display = 'block';
+  document.getElementById('vlmProgressContainer').style.display = 'none';
+  
+  // Scroll to results
+  resultsDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function renderVLMFactor(title, score, explanation) {
+  let scoreClass = 'low';
+  let bgColor = '#d4edda';
+  let textColor = '#155724';
+  
+  if (score >= 34 && score <= 66) {
+    scoreClass = 'moderate';
+    bgColor = '#fff3cd';
+    textColor = '#856404';
+  } else if (score > 66) {
+    scoreClass = 'high';
+    bgColor = '#f8d7da';
+    textColor = '#721c24';
+  }
+  
+  return `
+    <div class="factor-block">
+      <div class="factor-title">${title}</div>
+      <div style="display:inline-block; padding:6px 16px; border-radius:999px; font-weight:700; font-size:16px; margin-bottom:12px; background:${bgColor}; color:${textColor};">${score}/100</div>
+      <div style="font-size:15px; line-height:1.7; color:#2d3748;">${explanation}</div>
+    </div>
+  `;
 }
 
 </script>
