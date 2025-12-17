@@ -261,10 +261,6 @@ def analyze_video_client():
         
         client = OpenAI(api_key=api_key)
         
-        # Initialize OpenAI client (new SDK v1.0+)
-        from openai import OpenAI
-        client = OpenAI(api_key=openai.api_key)
-        
         # Step 1: Transcribe audio with Whisper if video provided
         transcript = ""
         if video_base64:
