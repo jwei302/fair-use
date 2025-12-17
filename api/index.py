@@ -327,10 +327,25 @@ Respond in JSON format:
                 "content": similar_content_array
             }],
             max_tokens=1000,
-            temperature=0.3
+            temperature=0.3,
+            response_format={"type": "json_object"}
         )
         
-        similar_content = json.loads(similar_response.choices[0].message.content)
+        # Parse similar content response
+        similar_response_text = similar_response.choices[0].message.content
+        print(f"Similar content response: {similar_response_text[:500]}")
+        
+        try:
+            similar_content = json.loads(similar_response_text)
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse similar content JSON: {e}")
+            print(f"Full response: {similar_response_text}")
+            # Return a default structure if parsing fails
+            similar_content = {
+                "summary": similar_response_text[:200] if similar_response_text else "Analysis failed",
+                "identified_works": [],
+                "unidentified": True
+            }
         
         # Step 3: Evaluate fair use
         fair_use_prompt = f"""You are a fair-use assessment tool. Given video frames, transcript, and identified source material,
@@ -378,7 +393,28 @@ Respond ONLY with valid JSON:
             response_format={"type": "json_object"}
         )
         
-        fair_use_eval = json.loads(fair_use_response.choices[0].message.content)
+        # Parse fair use evaluation response
+        fair_use_response_text = fair_use_response.choices[0].message.content
+        print(f"Fair use response: {fair_use_response_text[:500]}")
+        
+        try:
+            fair_use_eval = json.loads(fair_use_response_text)
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse fair use JSON: {e}")
+            print(f"Full response: {fair_use_response_text}")
+            # Return a default structure if parsing fails
+            fair_use_eval = {
+                "overall_risk_score": 50,
+                "confidence_score": 0,
+                "error": "Failed to parse AI response",
+                "raw_response": fair_use_response_text[:500] if fair_use_response_text else "No response",
+                "factors": {
+                    "purpose_character": {"score": 50, "explanation": "Unable to analyze"},
+                    "nature": {"score": 50, "explanation": "Unable to analyze"},
+                    "amount": {"score": 50, "explanation": "Unable to analyze"},
+                    "market_effect": {"score": 50, "explanation": "Unable to analyze"}
+                }
+            }
         
         return jsonify({
             "analysis": {
