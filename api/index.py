@@ -255,6 +255,10 @@ def analyze_video_client():
         if not openai.api_key:
             return jsonify({"error": "OpenAI API key not configured"}), 500
         
+        # Initialize OpenAI client (new SDK v1.0+)
+        from openai import OpenAI
+        client = OpenAI(api_key=openai.api_key)
+        
         # Step 1: Transcribe audio with Whisper if video provided
         transcript = ""
         if video_base64:
@@ -267,19 +271,21 @@ def analyze_video_client():
                     tmp_video.write(video_data)
                     tmp_video_path = tmp_video.name
                 
-                # Call Whisper API
+                # Call Whisper API (new SDK)
                 with open(tmp_video_path, 'rb') as video_file:
-                    whisper_response = openai.Audio.transcribe(
+                    transcript = client.audio.transcriptions.create(
                         model="whisper-1",
-                        file=video_file
+                        file=video_file,
+                        response_format="text"
                     )
-                    transcript = whisper_response.get('text', '')
                 
                 # Clean up temp file
                 os.unlink(tmp_video_path)
                 
             except Exception as e:
                 print(f"Audio transcription error: {e}")
+                import traceback
+                traceback.print_exc()
                 transcript = "[Audio transcription failed - visual analysis only]"
         else:
             transcript = "[No audio provided - visual analysis only]"
@@ -296,21 +302,30 @@ Respond in JSON format:
   "summary": "brief description",
   "identified_works": [
     {"title": "work name", "creator": "creator", "confidence": "high/medium/low", "evidence": "what you observed"}
-  ]
+  ],
+  "unidentified": true or false
 }"""
         
-        # Take first 10 frames to stay within limits
-        frame_messages = [{"type": "text", "text": similar_prompt}]
-        for i, frame in enumerate(frames[:10]):
-            frame_messages.append({
+        # Build message content array for vision API
+        similar_content_array = [{"type": "text", "text": similar_prompt}]
+        for i, frame in enumerate(frames[:8]):
+            similar_content_array.append({
                 "type": "image_url",
-                "image_url": {"url": frame}
+                "image_url": {
+                    "url": frame,
+                    "detail": "low"
+                }
             })
         
-        similar_response = openai.ChatCompletion.create(
-            model="gpt-4-vision-preview",
-            messages=[{"role": "user", "content": frame_messages}],
-            max_tokens=1000
+        # Correct SDK syntax with messages array
+        similar_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": similar_content_array
+            }],
+            max_tokens=1000,
+            temperature=0.3
         )
         
         similar_content = json.loads(similar_response.choices[0].message.content)
@@ -319,36 +334,46 @@ Respond in JSON format:
         fair_use_prompt = f"""You are a fair-use assessment tool. Given video frames, transcript, and identified source material,
 evaluate fair-use risk across four factors.
 
-Transcript: {transcript}
+Transcript: {transcript[:2000] if transcript else "[No transcript]"}
 
 Similar Content Found: {json.dumps(similar_content)}
 
 For each factor, provide a score from 0-100 (0=strong fair use, 100=high infringement risk) and explanation.
 
-Respond in JSON format:
+Respond ONLY with valid JSON:
 {{
-  "overall_risk_score": 0-100,
-  "risk_level": "Low Risk" | "Moderate Risk" | "High Risk",
-  "confidence_score": 0-100,
+  "overall_risk_score": <0-100>,
+  "risk_level": "Low Risk (0-33)" or "Moderate Risk (34-66)" or "High Risk (67-100)",
+  "confidence_score": <0-100>,
   "factors": {{
-    "purpose_and_character": {{"score": 0-100, "explanation": "..."}},
-    "nature_of_work": {{"score": 0-100, "explanation": "..."}},
-    "amount_and_substantiality": {{"score": 0-100, "explanation": "..."}},
-    "market_effect": {{"score": 0-100, "explanation": "..."}}
+    "purpose_and_character": {{"score": <0-100>, "explanation": "..."}},
+    "nature_of_work": {{"score": <0-100>, "explanation": "..."}},
+    "amount_and_substantiality": {{"score": <0-100>, "explanation": "..."}},
+    "market_effect": {{"score": <0-100>, "explanation": "..."}}
   }}
 }}"""
         
-        fair_use_messages = [{"type": "text", "text": fair_use_prompt}]
+        # Build message content array for fair use analysis
+        fair_use_content_array = [{"type": "text", "text": fair_use_prompt}]
         for i, frame in enumerate(frames[:10]):
-            fair_use_messages.append({
+            fair_use_content_array.append({
                 "type": "image_url",
-                "image_url": {"url": frame}
+                "image_url": {
+                    "url": frame,
+                    "detail": "high"
+                }
             })
         
-        fair_use_response = openai.ChatCompletion.create(
-            model="gpt-4-vision-preview",
-            messages=[{"role": "user", "content": fair_use_messages}],
-            max_tokens=2000
+        # Correct SDK syntax
+        fair_use_response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[{
+                "role": "user",
+                "content": fair_use_content_array
+            }],
+            max_tokens=2000,
+            temperature=0.3,
+            response_format={"type": "json_object"}
         )
         
         fair_use_eval = json.loads(fair_use_response.choices[0].message.content)
