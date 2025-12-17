@@ -615,6 +615,9 @@
   <div class="subtitle">
     Answer a few questions to get an educational, non-binding sense of how your use might align with U.S. fair use principles.
   </div>
+  <div style="text-align:center; margin-top:8px; margin-bottom:24px; font-size:14px; color:#718096; font-style:italic;">
+    by Eliot Chang, Jeffrey Wei, and Leo Wylonis
+  </div>
 
   <div class="intro-card">
     <div class="badge">What is fair use?</div>
@@ -710,6 +713,19 @@
       <li><b>4 to 6:</b> is mixed or uncertain</li>
       <li><b>7 to 9:</b> factor leans against fair use</li>
     </ul>
+  </div>
+
+  <div class="intro-card">
+    <h2>Logistic Regression Analysis</h2>
+    <p>
+      We also trained a logistic regression model on 10 cases where U.S. Law, Technology, and Culture experts answered all 25 questions. This is low data (just for demo purposes) but we analyzed which questions had the biggest impact on the AI's predictions.
+    </p>
+    <p>
+      The top 5 most impactful questions were: Q15 (Substitute for original), Q13 (Heart of work), Q16 (Replace original), Q20 (Licensing markets), and Q18 (Effect on sales/views). Note that Q11-15 are Factor 3 (Amount & Substantiality), Q16-20 are Factor 4 (Market Effect), Q1-5 are Factor 1 (Purpose), Q6-10 are Factor 2 (Nature), and Q21-25 are Factor 5 (Other).
+    </p>
+    <p>
+      What's interesting is that most of these come from Factor 4 (Market Effect), pointing to this being the biggest predictor of fair use in the cases we looked at. With more data, analysis like this could show which factor has historically been most important in fair use cases from a statistical perspective.
+    </p>
   </div>
 
   <div class="intro-card">
@@ -876,43 +892,8 @@ const scaleDescriptions = {
 };
 
 // Weights for each question (index 1..25)
-// Based on legal importance in fair use case law
+// All questions weighted equally
 const weights = Array(26).fill(1);
-
-// Factor 1 (Purpose & Character) - Courts consider this VERY important
-weights[1] = 5;  // Transformative nature - CRITICAL
-weights[2] = 4;  // Comment/critique/parody - Very important
-weights[3] = 3;  // Commercial vs noncommercial - Important
-weights[4] = 3;  // Creative effort added - Important
-weights[5] = 2;  // Intent - Moderately important
-
-// Factor 2 (Nature of the Work) - Courts consider this moderately important
-weights[6] = 2;  // Creativity of original - Moderately important
-weights[7] = 1;  // Published status - Less important
-weights[8] = 1;  // Finished work - Less important
-weights[9] = 2;  // Creative vs factual parts - Moderately important
-weights[10] = 2; // Type of work - Moderately important
-
-// Factor 3 (Amount & Substantiality) - Courts consider this important
-weights[11] = 3; // Amount of video used - Important
-weights[12] = 3; // Amount of audio used - Important
-weights[13] = 4; // Heart of work - Very important
-weights[14] = 2; // Continuous vs broken - Moderately important
-weights[15] = 4; // Substitute for original - Very important
-
-// Factor 4 (Market Effect) - Courts consider this VERY important
-weights[16] = 5; // Replace original - CRITICAL
-weights[17] = 3; // Same audience - Important
-weights[18] = 5; // Effect on sales/views - CRITICAL
-weights[19] = 3; // Same market space - Important
-weights[20] = 5; // Licensing markets - CRITICAL
-
-// Factor 5 (Other considerations) - Courts consider this less important officially
-weights[21] = 1; // Tone - Less important
-weights[22] = 2; // Judge/jury perception - Moderately important
-weights[23] = 2; // Honesty about relationship - Moderately important
-weights[24] = 1; // Disclaimers - Less important
-weights[25] = 2; // Creator perception - Moderately important
 
 // Factor groupings (you can change which questions belong to which factor)
 const factorAssignments = {

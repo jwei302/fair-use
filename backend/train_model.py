@@ -110,6 +110,39 @@ def train_model():
         print("\nConfusion Matrix:")
         print(confusion_matrix(y_test, y_pred))
     
+    # Feature importance (coefficient magnitudes)
+    print("\n" + "="*50)
+    print("Feature Importance (Question Weights in Model)")
+    print("="*50)
+    print("Higher absolute coefficient = bigger impact on prediction\n")
+    
+    coefficients = model.coef_[0]
+    feature_importance = [(abs(coef), idx + 1, coef) for idx, coef in enumerate(coefficients)]
+    feature_importance.sort(reverse=True)
+    
+    # Question texts for reference
+    question_texts = {
+        1: "Transformative nature", 2: "Comment/critique/parody", 3: "Commercial vs noncommercial",
+        4: "Creative effort added", 5: "Intent", 6: "Creativity of original", 7: "Published status",
+        8: "Finished work", 9: "Creative vs factual parts", 10: "Type of work",
+        11: "Amount of video used", 12: "Amount of audio used", 13: "Heart of work",
+        14: "Continuous vs broken", 15: "Substitute for original", 16: "Replace original",
+        17: "Same audience", 18: "Effect on sales/views", 19: "Same market space",
+        20: "Licensing markets", 21: "Tone", 22: "Judge/jury perception",
+        23: "Honesty about relationship", 24: "Disclaimers", 25: "Creator perception"
+    }
+    
+    print("Top Questions by Impact (highest to lowest):")
+    print("-" * 70)
+    for rank, (abs_coef, q_num, coef) in enumerate(feature_importance, 1):
+        direction = "favors fair use (lower values)" if coef < 0 else "favors infringement (higher values)"
+        print(f"{rank:2d}. Q{q_num:2d} (coef={abs_coef:6.3f}): {question_texts[q_num]:35s} - {direction}")
+    
+    print("\n" + "="*50)
+    print("Note: Negative coefficients mean lower values (closer to 1) favor fair use")
+    print("      Positive coefficients mean higher values (closer to 9) favor infringement")
+    print("="*50)
+    
     # Save model
     save_model(model)
     
