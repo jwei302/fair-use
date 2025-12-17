@@ -675,16 +675,6 @@
     </p>
   </div>
 
-  <!-- Important Notice -->
-  <div style="background:#e8f5e9; border-left:4px solid #4caf50; padding:20px; border-radius:8px; margin-bottom:28px;">
-    <h3 style="margin-top:0; color:#2e7d32;">✨ Client-Side Processing</h3>
-    <p style="margin-bottom:8px; color:#1b5e20;">
-      This tool processes videos in your browser, then sends the extracted frames and audio to GPT-4V for analysis. No video is permanently stored - everything happens client-side.
-    </p>
-    <p style="margin-bottom:0; color:#1b5e20; font-size:13px;">
-      <strong>Note:</strong> Processing may take 1-2 minutes depending on video length and your internet connection.
-    </p>
-  </div>
 
   <!-- Upload Section -->
   <div style="background:var(--card-bg); padding:40px; border-radius:16px; box-shadow:0 4px 16px rgba(0,0,0,0.08); margin-bottom:28px; border:2px dashed #d8dee9; text-align:center; transition:all 0.3s;">
@@ -1654,15 +1644,16 @@ async function uploadAndAnalyzeVLM() {
   
   try {
     // Step 1: Extract frames from video (client-side)
-    updateVLMProgress(15, 'Extracting frames from video...');
+    updateVLMProgress(10, 'Extracting frames from video...');
     const frames = await extractFramesFromVideo(vlmSelectedFile, 1, 20);
     
-    // Step 2: Extract audio from video (client-side)
-    updateVLMProgress(35, 'Extracting audio from video...');
-    const audioBase64 = await extractAudioFromVideo(vlmSelectedFile);
+    // Step 2: Upload video file for audio transcription
+    // Convert video to base64 for sending (for small videos only)
+    updateVLMProgress(25, 'Preparing video for audio transcription...');
+    const videoBase64 = await fileToBase64(vlmSelectedFile);
     
     // Step 3: Send to backend for OpenAI API calls
-    updateVLMProgress(50, 'Analyzing with AI (this may take 1-2 minutes)...');
+    updateVLMProgress(40, 'Transcribing audio with Whisper API...');
     
     const analysisResponse = await fetch(`${API_BASE}/api/analyze-video-client`, {
       method: 'POST',
@@ -1671,7 +1662,7 @@ async function uploadAndAnalyzeVLM() {
       },
       body: JSON.stringify({
         frames: frames,
-        audio_base64: audioBase64,
+        video_base64: videoBase64,
         filename: vlmSelectedFile.name
       })
     });
@@ -1681,7 +1672,7 @@ async function uploadAndAnalyzeVLM() {
       throw new Error(errorData.error || 'Analysis failed');
     }
     
-    updateVLMProgress(90, 'Finalizing results...');
+    updateVLMProgress(70, 'Analyzing content with GPT-4V...');
     const analysisData = await analysisResponse.json();
     
     updateVLMProgress(100, 'Analysis complete!');
@@ -1695,6 +1686,18 @@ async function uploadAndAnalyzeVLM() {
   } finally {
     document.getElementById('vlmAnalyzeBtn').disabled = false;
   }
+}
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(',')[1];
+      resolve(base64);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 function displayVLMResults(data) {

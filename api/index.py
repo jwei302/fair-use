@@ -236,14 +236,16 @@ def analyze_video():
 
 @app.route("/api/analyze-video-client", methods=["POST"])
 def analyze_video_client():
-    """Analyze video using client-extracted frames and audio"""
+    """Analyze video using client-extracted frames and video file for audio"""
     import openai
     import base64
+    import tempfile
     
     try:
         data = request.json
         frames = data.get('frames', [])
-        audio_base64 = data.get('audio_base64')
+        video_base64 = data.get('video_base64')
+        filename = data.get('filename', 'video.mp4')
         
         if not frames:
             return jsonify({"error": "No frames provided"}), 400
@@ -253,17 +255,34 @@ def analyze_video_client():
         if not openai.api_key:
             return jsonify({"error": "OpenAI API key not configured"}), 500
         
-        # Step 1: Transcribe audio with Whisper
+        # Step 1: Transcribe audio with Whisper if video provided
         transcript = ""
-        if audio_base64:
+        if video_base64:
             try:
-                audio_data = base64.b64decode(audio_base64)
-                # Note: Whisper API needs a file, so we'd need to save temporarily
-                # For now, skip transcription in serverless
-                transcript = "[Audio transcription skipped in serverless environment]"
+                # Decode video
+                video_data = base64.b64decode(video_base64)
+                
+                # Save to temporary file for Whisper API
+                with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as tmp_video:
+                    tmp_video.write(video_data)
+                    tmp_video_path = tmp_video.name
+                
+                # Call Whisper API
+                with open(tmp_video_path, 'rb') as video_file:
+                    whisper_response = openai.Audio.transcribe(
+                        model="whisper-1",
+                        file=video_file
+                    )
+                    transcript = whisper_response.get('text', '')
+                
+                # Clean up temp file
+                os.unlink(tmp_video_path)
+                
             except Exception as e:
                 print(f"Audio transcription error: {e}")
-                transcript = "[Audio transcription failed]"
+                transcript = "[Audio transcription failed - visual analysis only]"
+        else:
+            transcript = "[No audio provided - visual analysis only]"
         
         # Step 2: Find similar content with GPT-4V
         similar_prompt = """You are analyzing video content to identify what it resembles or derives from.
