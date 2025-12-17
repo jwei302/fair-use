@@ -336,16 +336,35 @@ Respond in JSON format:
         print(f"Similar content response: {similar_response_text[:500]}")
         
         try:
+            # Try to parse directly
             similar_content = json.loads(similar_response_text)
         except json.JSONDecodeError as e:
             print(f"Failed to parse similar content JSON: {e}")
             print(f"Full response: {similar_response_text}")
-            # Return a default structure if parsing fails
-            similar_content = {
-                "summary": similar_response_text[:200] if similar_response_text else "Analysis failed",
-                "identified_works": [],
-                "unidentified": True
-            }
+            
+            # Try to extract JSON from markdown code blocks
+            try:
+                import re
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', similar_response_text, re.DOTALL)
+                if json_match:
+                    similar_content = json.loads(json_match.group(1))
+                    print("Successfully extracted JSON from markdown")
+                else:
+                    # Try to find raw JSON in the text
+                    json_match = re.search(r'(\{.*\})', similar_response_text, re.DOTALL)
+                    if json_match:
+                        similar_content = json.loads(json_match.group(1))
+                        print("Successfully extracted raw JSON")
+                    else:
+                        raise ValueError("No JSON found in response")
+            except Exception as fallback_error:
+                print(f"Fallback parsing also failed: {fallback_error}")
+                # Return a default structure if all parsing fails
+                similar_content = {
+                    "summary": "Unable to parse AI response. Video content could not be identified.",
+                    "identified_works": [],
+                    "unidentified": True
+                }
         
         # Step 3: Evaluate fair use
         fair_use_prompt = f"""You are a fair-use assessment tool. Given video frames, transcript, and identified source material,
@@ -460,23 +479,42 @@ Respond ONLY with valid JSON:
         print(f"Fair use response: {fair_use_response_text[:500]}")
         
         try:
+            # Try to parse directly
             fair_use_eval = json.loads(fair_use_response_text)
         except json.JSONDecodeError as e:
             print(f"Failed to parse fair use JSON: {e}")
             print(f"Full response: {fair_use_response_text}")
-            # Return a default structure if parsing fails
-            fair_use_eval = {
-                "overall_risk_score": 50,
-                "confidence_score": 0,
-                "error": "Failed to parse AI response",
-                "raw_response": fair_use_response_text[:500] if fair_use_response_text else "No response",
-                "factors": {
-                    "purpose_character": {"score": 50, "explanation": "Unable to analyze"},
-                    "nature": {"score": 50, "explanation": "Unable to analyze"},
-                    "amount": {"score": 50, "explanation": "Unable to analyze"},
-                    "market_effect": {"score": 50, "explanation": "Unable to analyze"}
+            
+            # Try to extract JSON from markdown code blocks
+            try:
+                import re
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', fair_use_response_text, re.DOTALL)
+                if json_match:
+                    fair_use_eval = json.loads(json_match.group(1))
+                    print("Successfully extracted JSON from markdown")
+                else:
+                    # Try to find raw JSON in the text
+                    json_match = re.search(r'(\{.*\})', fair_use_response_text, re.DOTALL)
+                    if json_match:
+                        fair_use_eval = json.loads(json_match.group(1))
+                        print("Successfully extracted raw JSON")
+                    else:
+                        raise ValueError("No JSON found in response")
+            except Exception as fallback_error:
+                print(f"Fallback parsing also failed: {fallback_error}")
+                # Return a default structure if all parsing fails
+                fair_use_eval = {
+                    "overall_risk_score": 50,
+                    "confidence_score": 0,
+                    "error": "Failed to parse AI response",
+                    "raw_response": fair_use_response_text[:500] if fair_use_response_text else "No response",
+                    "factors": {
+                        "purpose_character": {"score": 50, "explanation": "Unable to analyze - AI response could not be parsed"},
+                        "nature": {"score": 50, "explanation": "Unable to analyze - AI response could not be parsed"},
+                        "amount": {"score": 50, "explanation": "Unable to analyze - AI response could not be parsed"},
+                        "market_effect": {"score": 50, "explanation": "Unable to analyze - AI response could not be parsed"}
+                    }
                 }
-            }
         
         return jsonify({
             "analysis": {
